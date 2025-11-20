@@ -1,0 +1,40 @@
+export component MySlider inherits Rectangle {
+    in-out property <float> value;
+    callback set-vol(float);
+    callback reset();
+    in property <float> val_org: value < 100 ? 100 - value : 0;
+    width: 25px;
+    height: 215px;
+    horizontal-stretch: 1;
+    vertical-stretch: 0;
+    border-radius: root.width / 2;
+    clip: true;
+
+    background: touch.pressed ? #f8f : touch.has-hover ? #66f : #0000ff;
+    border-width: 1px;
+    border-color: root.background.darker(25%);
+    animate background { duration: 200ms; }
+
+    handle := Rectangle {
+        y: 0px;
+        width: parent.width;
+        height: root.height * (val_org / 100);
+        border-top-left-radius: self.height / 2;
+        border-top-right-radius: self.height / 2;
+        background: touch.pressed ? #eee : #ddd;
+        animate background { duration: 200ms; }
+        animate height { duration: 200ms; }
+    }
+
+    touch := TouchArea {
+        property <float> pressed-value;
+        pointer-event(event) => {
+            if (event.button == PointerEventButton.left && event.kind == PointerEventKind.down) {
+                self.pressed-value = root.value;
+                root.value = 100 * (1 - (touch.pressed-y / (root.height - handle.width)));
+                set_vol(root.value);
+                reset();
+            }
+        }
+    }
+}

@@ -1,0 +1,10 @@
+import { Taskbar } from "panels/taskbar/taskbar.slint";
+
+export component Entry inherits Window {
+    // Forward properties and callbacks from Taskbar  
+    callback update-info();
+    
+    
+    taskbar := Taskbar {}
+}
+

@@ -1,0 +1,35 @@
+
+
+export struct ClockState {
+    time: string,
+    date: string,
+}
+
+export component Clock {
+    in-out property <ClockState> state: {
+        time: "00:00",
+        date: "02/01/2025",
+    };
+    
+    VerticalLayout {
+        padding-left: 4px;
+        padding-right: 4px;
+        width: 100%;
+        alignment: center;
+        Text {
+            text: root.state.date;
+            color: #aaa;
+            font-size: 12px;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+
+        Text {
+            text: root.state.time;
+            color: #fff;
+            font-size: 16px;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
+}

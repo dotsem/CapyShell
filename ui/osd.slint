@@ -1,0 +1,69 @@
+import { MySlider } from "slider.slint";
+
+export struct osdState {
+    is-open:bool,
+    restart: bool,
+}
+
+export component VolumeOSD inherits Window {
+    in-out property <osdState> state: { is-open: false, restart: false };
+    in-out property <float> value;
+    pure callback get_vol_value();
+    pure callback vol_changed(float);
+    pure callback call_close();
+    background: transparent;
+    width: 80px;
+    height: 250px;
+    
+    // Main container that controls visibility
+    container := Rectangle {
+        opacity: root.state.is-open ? 1.0 : 0.0;
+        background: transparent;
+        animate opacity { duration: 150ms; easing: ease-in-out; }
+        
+        MySlider {
+            y: 5px;
+            x: 5px;
+            value: root.value;
+            set-vol(val) => {
+                root.vol_changed(val);
+            }
+
+            reset => {
+                if state.is-open {
+                    state.restart = true;
+                }
+            }
+        }
+    }
+
+  
+
+    long_timer := Timer {
+        running: root.state.is-open;
+        interval: 2s;
+        triggered => {
+            state.is-open = false;
+            call_close();
+        }
+    }
+
+    Timer {
+        running: true;
+        interval: 200ms;
+        triggered => {
+            if state.restart {
+                state.restart = false;
+                long_timer.restart();
+            }
+        }
+    }
+
+    Timer {
+        running: root.state.is-open;
+        interval: 100ms;
+        triggered() => {
+            root.get_vol_value();
+        }
+    }
+}
