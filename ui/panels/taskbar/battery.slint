@@ -1,5 +1,4 @@
 
-
 import { ProgressIndicator } from "std-widgets.slint";
 
 export enum BatterState {
@@ -28,113 +27,108 @@ export component Battery {
     in-out property <BatteryData> state: {
         percentage: 0,
         state: BatterState.Unknown,
-        icon: "󰂑",
+        icon: "",
     };
 
-    // Helper function to get color based on state
-    function get-color(s: BatterState) -> color {
+    pure function get-color(s: BatterState) -> color {
         if (s == BatterState.Unknown) {
             return #a855f7;
-        }        // purple
-        else if (s == BatterState.Critical) {
+        }
+        if (s == BatterState.Critical) {
             return #ef4444;
-        }   // red
-        else if (s == BatterState.Low) {
+        }
+        if (s == BatterState.Low) {
             return #f97316;
-        }        // orange
-        else if (s == BatterState.S1) {
+        }
+        if (s == BatterState.S1) {
             return #eab308;
-        }         // yellow
-        else if (s == BatterState.S2) {
-            return #ffffff;
-        }         // white
-        else if (s == BatterState.S3) {
-            return #ffffff;
-        }         // white
-        else if (s == BatterState.S4) {
-            return #ffffff;
-        }         // white
-        else if (s == BatterState.S5) {
-            return #ffffff;
-        }         // white
-        else if (s == BatterState.S6) {
-            return #ffffff;
-        }         // white
-        else if (s == BatterState.Full) {
-            return #22c55e;
-        }       // green
-        else if (s == BatterState.Charging) {
-            return #3b82f6;
-        }   // blue
-        else if (s == BatterState.ConnectedNotCharging) {
-            return #a855f7;
-        } // purple
-        else {
+        }
+        if (s == BatterState.S2) {
             return #ffffff;
         }
+        if (s == BatterState.S3) {
+            return #ffffff;
+        }
+        if (s == BatterState.S4) {
+            return #ffffff;
+        }
+        if (s == BatterState.S5) {
+            return #ffffff;
+        }
+        if (s == BatterState.S6) {
+            return #ffffff;
+        }
+        if (s == BatterState.Full) {
+            return #22c55e;
+        }
+        if (s == BatterState.Charging) {
+            return #3b82f6;
+        }
+        if (s == BatterState.ConnectedNotCharging) {
+            return #a855f7;
+        }
+        return #ffffff;
     }
 
-    VerticalLayout {
+    // Component sizing - fits content
+    HorizontalLayout {
+        spacing: 6px;
         alignment: center;
-        
-        HorizontalLayout {
-            alignment: center;
-            spacing: 6px;
 
-            Text {
-                text: root.state.percentage + "%";
-                font-size: 12px;
-                color: get-color(root.state.state);
-                vertical-alignment: center;
-                font-weight: 600;
-            }
-
-            // Circular progress indicator container
+        // Circular indicator with icon
+        Rectangle {
+            width: 40px;
+            height: 40px;
+            
+            // Background circle
             Rectangle {
-                width: 40px;
-                height: 40px;
-
-                // Background circle
-                background-circle := Rectangle {
-                    width: 100%;
-                    height: 100%;
-                    border-radius: 100px;
-                    background: #3d3d3d;
-                }
-
-                Path {
-                    width: 100%;
-                    height: 100%;
-                    viewbox-width: 100;
-                    viewbox-height: 100;
-                    
-                    commands: {
-                        if (root.state.percentage == 0) {
-                            ""
-                        } else if (root.state.percentage == 100) {
-                            "M 50 10 A 40 40 0 1 1 49.99 10"
-                        } else {
-                            "M 50 10 A 40 40 0 " + 
-                            (root.state.percentage > 50 ? "1" : "0") + 
-                            " 1 " + 
-                            (50 + 40 * sin(root.state.percentage * 3.6deg)) + " " + 
-                            (50 - 40 * cos(root.state.percentage * 3.6deg))
-                        }
-                    };
-                    stroke: get-color(root.state.state);
-                    stroke-width: 2px;
-                    fill: transparent;
-                }
-
-                // Icon in the center
-                Text {
-                    text: root.state.icon;
-                    font-size: 16px;
-                    color: get-color(root.state.state);
-                    horizontal-alignment: center;
-                    vertical-alignment: center;
-                }
+                width: 100%;
+                height: 100%;
+                border-radius: 20px;
+                background: #3d3d3d;
             }
+
+            // Battery Level Arc (Circular Progress)
+            Path {
+                width: 100%;
+                height: 100%;
+                viewbox-width: 100;
+                viewbox-height: 100;
+                commands: {
+                    if (root.state.percentage == 0) {
+                        ""
+                    } else if (root.state.percentage == 100) {
+                        "M 50 10 A 40 40 0 1 1 49.99 10"
+                    } else {
+                        "M 50 10 A 40 40 0 " + (root.state.percentage > 50 ? "1" : "0") + " 1 " + (50 + 40 * sin(root.state.percentage * 3.6deg)) + " " + (50 - 40 * cos(root.state.percentage * 3.6deg))
+                    }
+                };
+                stroke: get-color(root.state.state);
+                stroke-width: 2px;
+                fill: transparent;
+            }
+            
+            // Icon (SVG Path) in Center
+            Path {
+                commands: root.state.icon;
+                width: 20px;
+                height: 20px;
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
+                viewbox-width: 24;
+                viewbox-height: 24;
+                fill: get-color(root.state.state);
+                stroke-width: 0;
+            }
+        }
+
+        // Percentage text
+        Text {
+            text: root.state.percentage + "%";
+            font-size: 12px;
+            color: #f8f8f2;
+            vertical-alignment: center;
+            font-weight: 600;
         }
     }
 }

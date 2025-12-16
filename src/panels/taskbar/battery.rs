@@ -4,9 +4,17 @@
 //! to the taskbar event bus.
 
 use crate::panels::taskbar::events;
-use crate::panels::taskbar::taskbar::{BatterState, BatteryData};
+use crate::panels::taskbar::taskbar::BatterState;
 use battery::{Battery, Manager, State};
 use std::thread;
+
+/// Thread-safe battery status for cross-thread communication.
+/// Does NOT contain slint::Image which is !Send.
+#[derive(Clone, Copy, Debug)]
+pub struct BatteryStatus {
+    pub percentage: i32,
+    pub state: BatterState,
+}
 
 fn determine_battery_state(battery: &Battery) -> BatterState {
     let percentage = get_percentage(battery);
@@ -53,81 +61,58 @@ fn handle_unknown_state(battery: &Battery, percentage: i32) -> BatterState {
     }
 }
 
-fn get_icon_for_state(state: BatterState) -> &'static str {
-    match state {
-        BatterState::Unknown => "󰂑",
-        BatterState::Critical => "󰂃",
-        BatterState::Low => "󰁺",
-        BatterState::S1 => "󰁻",
-        BatterState::S2 => "󰁼",
-        BatterState::S3 => "󰁽",
-        BatterState::S4 => "󰁾",
-        BatterState::S5 => "󰁿",
-        BatterState::S6 => "󰂀",
-        BatterState::Full => "󰁹",
-        BatterState::Charging => "󰂄",
-        BatterState::ConnectedNotCharging => "󰂃",
-        _ => "󰂑",
-    }
-}
-
-fn default_battery_data() -> BatteryData {
-    BatteryData {
+fn default_battery_status() -> BatteryStatus {
+    BatteryStatus {
         percentage: 0,
         state: BatterState::Unknown,
-        icon: "󰂑".into(),
     }
 }
 
 /// Get current battery data from system.
-pub fn get_battery_data() -> BatteryData {
+pub fn get_battery_status() -> BatteryStatus {
     match Manager::new() {
-        Ok(manager) => get_battery_data_from_manager(manager),
+        Ok(manager) => get_battery_from_manager(manager),
         Err(e) => {
             eprintln!("Failed to create battery manager: {}", e);
-            default_battery_data()
+            default_battery_status()
         }
     }
 }
 
-fn get_battery_data_from_manager(manager: Manager) -> BatteryData {
+fn get_battery_from_manager(manager: Manager) -> BatteryStatus {
     match manager.batteries() {
         Ok(mut batteries) => match batteries.next() {
             Some(Ok(mut battery)) => {
                 if let Err(e) = manager.refresh(&mut battery) {
                     eprintln!("Failed to refresh battery: {}", e);
-                    return default_battery_data();
+                    return default_battery_status();
                 }
 
                 let percentage = get_percentage(&battery);
                 let state = determine_battery_state(&battery);
-                let icon = get_icon_for_state(state);
 
-                BatteryData {
-                    percentage,
-                    state,
-                    icon: icon.into(),
-                }
+                BatteryStatus { percentage, state }
             }
             Some(Err(e)) => {
                 eprintln!("Error reading battery: {}", e);
-                default_battery_data()
+                default_battery_status()
             }
             None => {
                 eprintln!("No battery found");
-                default_battery_data()
+                default_battery_status()
             }
         },
         Err(e) => {
             eprintln!("Failed to get batteries: {}", e);
-            default_battery_data()
+            default_battery_status()
         }
     }
 }
 
-/// Update the UI with current battery info (for initial load).
-pub fn update_battery_info(ui: &crate::panels::taskbar::taskbar::Taskbar) {
-    ui.set_battery_state(get_battery_data());
+/// Update the UI with current battery info (initial load).
+/// IMPORTANT: This function must be called on the MAIN thread to set images.
+pub fn get_initial_battery_status() -> BatteryStatus {
+    get_battery_status()
 }
 
 /// Start the battery monitoring background thread.
@@ -149,8 +134,8 @@ pub fn start_battery_monitor() {
 /// Send battery update to event bus.
 #[inline]
 fn send_battery_update() {
-    let data = get_battery_data();
-    events::send_battery(data);
+    let status = get_battery_status();
+    events::send_battery(status);
 }
 
 async fn dbus_worker() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {

@@ -2,6 +2,7 @@ import { Clock, ClockState } from "clock.slint";
 import { Battery, BatteryData, BatterState } from "battery.slint";
 
 export component Taskbar inherits Window {
+    // State properties
     in-out property <ClockState> clock-state: {
         time: "00:00",
         date: "Mon, Jan 1",
@@ -10,8 +11,10 @@ export component Taskbar inherits Window {
     in-out property <BatteryData> battery-state: {
         percentage: 0,
         state: BatterState.Unknown,
-        icon: "󰂑",
+        icon: "",
     };
+
+    // Callbacks
     callback update-clock();
     callback update-battery();
     
@@ -24,24 +27,39 @@ export component Taskbar inherits Window {
         }
     }
 
+    // Main window styling
     background: #222;
     height: 48px;
 
+    // Main layout: 3-section row (left | center | right)
     HorizontalLayout {
         padding-left: 8px;
         padding-right: 8px;
         spacing: 8px;
-        
-        Rectangle { 
+
+        // === LEFT SECTION ===
+        // (Future: App menu, workspaces, etc.)
+        Rectangle {
             horizontal-stretch: 1;
+            // Placeholder for left-aligned items
         }
 
-        Battery {
-            state: root.battery-state;
-        }
+        // === CENTER SECTION ===
+        // (Future: Window title, media controls, etc.)
+        // Currently empty - items will go here
 
-        Clock {
-            state: root.clock-state;
+        // === RIGHT SECTION ===
+        HorizontalLayout {
+            spacing: 8px;
+            alignment: end;
+
+            Battery {
+                state: root.battery-state;
+            }
+
+            Clock {
+                state: root.clock-state;
+            }
         }
     }
 }

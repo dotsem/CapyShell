@@ -3,8 +3,8 @@
 //! Single-process multi-window architecture with restart-on-hotplug.
 
 mod event_bus;
+mod icons;
 mod panels;
-mod systemd_service;
 
 use hyprland::data::{Monitor, Monitors};
 use hyprland::shared::HyprData;
@@ -78,8 +78,33 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     println!("Created {} windows", windows.len());
 
+    // --- Icon Cache (Strings) ---
+    // Using Symbols Nerd Font codepoints
+    let battery_icons = icons::Icons::new();
+
+    // Helper to get icon from state
+    let get_icon = |state: panels::taskbar::taskbar::BatterState,
+                    icons: &icons::Icons|
+     -> slint::SharedString {
+        use panels::taskbar::taskbar::BatterState;
+        match state {
+            BatterState::Unknown => icons.unknown.clone(),
+            BatterState::Critical => icons.critical.clone(),
+            BatterState::Low => icons.low.clone(),
+            BatterState::S1 => icons.s1.clone(),
+            BatterState::S2 => icons.s2.clone(),
+            BatterState::S3 => icons.s3.clone(),
+            BatterState::S4 => icons.s4.clone(),
+            BatterState::S5 => icons.s5.clone(),
+            BatterState::S6 => icons.s6.clone(),
+            BatterState::Full => icons.full.clone(),
+            BatterState::Charging => icons.charging.clone(),
+            BatterState::ConnectedNotCharging => icons.charging.clone(),
+            _ => icons.unknown.clone(),
+        }
+    };
+
     // Now create Slint UIs for each window
-    // The platform is already set, so Taskbar::new() will work
     let mut uis: Vec<Taskbar> = Vec::new();
     for (i, waywin) in windows.iter().enumerate() {
         let ui = Taskbar::new()?;
@@ -99,6 +124,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         // Event polling timer
         let event_rx = events::receiver();
         let ui_weak_events = ui.as_weak();
+        let icons_clone = battery_icons.clone();
+
         let event_timer = slint::Timer::default();
         event_timer.start(
             slint::TimerMode::Repeated,
@@ -111,7 +138,13 @@ fn main() -> Result<(), Box<dyn Error>> {
                 if let Some(ui) = ui_weak_events.upgrade() {
                     for event in events {
                         match event {
-                            TaskbarEvent::Battery(data) => {
+                            TaskbarEvent::Battery(status) => {
+                                // Map status -> view model using cached icons
+                                let data = panels::taskbar::taskbar::BatteryData {
+                                    percentage: status.percentage,
+                                    state: status.state,
+                                    icon: get_icon(status.state, &icons_clone),
+                                };
                                 ui.set_battery_state(data);
                             }
                         }
@@ -122,9 +155,17 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         // Initial state
         clock::update_clock(&ui);
-        battery::update_battery_info(&ui);
 
-        // Keep timer alive by storing it (leak for now, proper cleanup would use Arc)
+        // Initial battery
+        let initial_status = battery::get_initial_battery_status();
+        let initial_data = panels::taskbar::taskbar::BatteryData {
+            percentage: initial_status.percentage,
+            state: initial_status.state,
+            icon: get_icon(initial_status.state, &battery_icons),
+        };
+        ui.set_battery_state(initial_data);
+
+        // Keep timer alive
         std::mem::forget(event_timer);
 
         uis.push(ui);
@@ -137,7 +178,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("CapyShell running with {} taskbars.", windows.len());
 
     // Run all windows in single-threaded event loop
-    // This takes ownership of windows
     let num_windows = windows.len();
     let states: Vec<_> = (0..num_windows).map(|_| None).collect();
     let callbacks: Vec<_> = (0..num_windows).map(|_| None).collect();

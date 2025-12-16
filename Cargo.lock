@@ -11,6 +11,7 @@ dependencies = [
  "crossbeam-channel",
  "futures-util",
  "hyprland",
+ "material-design-icons",
  "slint",
  "slint-build",
  "spell-framework",
@@ -3040,6 +3041,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "material-design-icons"
+version = "7.4.48"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "de4ae9d9037d3a25389a261952526dad800bcf25cdf510450306320927b693ec"
+
+[[package]]
 name = "maybe-rayon"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4835,6 +4842,7 @@ dependencies = [
 [[package]]
 name = "spell-framework"
 version = "1.0.0"
+source = "git+https://github.com/dotsem/Spell#6528487a7b4884b6a2cdd786139eee19b48dc7dd"
 dependencies = [
  "env_logger",
  "event-listener",

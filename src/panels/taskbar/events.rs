@@ -4,14 +4,14 @@
 //! polls and applies them to the UI.
 
 use crate::event_bus::CHANNEL_CAPACITY;
-use crate::panels::taskbar::taskbar::BatteryData;
+use crate::panels::taskbar::battery::BatteryStatus;
 use crossbeam_channel::{Receiver, Sender, bounded};
 use std::sync::OnceLock;
 
 /// All possible taskbar events from background services.
 #[derive(Clone, Debug)]
 pub enum TaskbarEvent {
-    Battery(BatteryData),
+    Battery(BatteryStatus),
     // Future events:
     // Music(MusicData),
     // Systray(SystrayData),
@@ -49,7 +49,7 @@ pub fn send(event: TaskbarEvent) {
 
 /// Send battery data to the taskbar.
 #[inline]
-pub fn send_battery(data: BatteryData) {
+pub fn send_battery(data: BatteryStatus) {
     send(TaskbarEvent::Battery(data));
 }
 

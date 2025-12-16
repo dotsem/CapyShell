@@ -1,5 +1,4 @@
 
-
 export struct ClockState {
     time: string,
     date: string,
@@ -10,16 +9,17 @@ export component Clock {
         time: "00:00",
         date: "02/01/2025",
     };
-    
+
+    // Component sizing - fits content
     VerticalLayout {
         padding-left: 4px;
         padding-right: 4px;
-        width: 100%;
         alignment: center;
+
         Text {
             text: root.state.date;
             color: #aaa;
-            font-size: 12px;
+            font-size: 10px;
             horizontal-alignment: center;
             vertical-alignment: center;
         }
@@ -27,9 +27,10 @@ export component Clock {
         Text {
             text: root.state.time;
             color: #fff;
-            font-size: 16px;
+            font-size: 14px;
             horizontal-alignment: center;
             vertical-alignment: center;
+            font-weight: 600;
         }
     }
 }
