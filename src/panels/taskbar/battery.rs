@@ -1,20 +1,12 @@
-use crate::panels::taskbar::taskbar::{BatterState, BatteryData, Taskbar};
+//! Battery monitoring service.
+//!
+//! Listens to UPower D-Bus signals and sends BatteryData events
+//! to the taskbar event bus.
+
+use crate::panels::taskbar::events;
+use crate::panels::taskbar::taskbar::{BatterState, BatteryData};
 use battery::{Battery, Manager, State};
-use crossbeam_channel::{Receiver, Sender, unbounded};
-use std::sync::OnceLock;
 use std::thread;
-
-/// Global channel for battery updates (thread-safe, initialized once)
-static BATTERY_CHANNEL: OnceLock<(Sender<BatteryData>, Receiver<BatteryData>)> = OnceLock::new();
-
-fn get_channel() -> &'static (Sender<BatteryData>, Receiver<BatteryData>) {
-    BATTERY_CHANNEL.get_or_init(|| unbounded())
-}
-
-/// Get the receiver for polling from the UI thread
-pub fn get_battery_receiver() -> Receiver<BatteryData> {
-    get_channel().1.clone()
-}
 
 fn determine_battery_state(battery: &Battery) -> BatterState {
     let percentage = get_percentage(battery);
@@ -30,6 +22,7 @@ fn determine_battery_state(battery: &Battery) -> BatterState {
     }
 }
 
+#[inline]
 fn get_percentage(battery: &Battery) -> i32 {
     (battery.state_of_charge().value * 100.0) as i32
 }
@@ -86,6 +79,7 @@ fn default_battery_data() -> BatteryData {
     }
 }
 
+/// Get current battery data from system.
 pub fn get_battery_data() -> BatteryData {
     match Manager::new() {
         Ok(manager) => get_battery_data_from_manager(manager),
@@ -131,38 +125,35 @@ fn get_battery_data_from_manager(manager: Manager) -> BatteryData {
     }
 }
 
-/// Update the UI with current battery info (called from event loop)
-pub fn update_battery_info(ui: &Taskbar) {
-    let battery_data = get_battery_data();
-    ui.set_battery_state(battery_data);
+/// Update the UI with current battery info (for initial load).
+pub fn update_battery_info(ui: &crate::panels::taskbar::taskbar::Taskbar) {
+    ui.set_battery_state(get_battery_data());
 }
 
 /// Start the battery monitoring background thread.
-/// Sends updates to a channel that should be polled by a Slint Timer.
+/// Sends events via the taskbar event bus.
 pub fn start_battery_monitor() {
     println!("Starting battery monitor...");
-    let tx = get_channel().0.clone();
 
     thread::spawn(move || {
         let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
         rt.block_on(async {
-            if let Err(e) = dbus_worker(&tx).await {
+            if let Err(e) = dbus_worker().await {
                 eprintln!("D-Bus worker failed: {}. Falling back to polling.", e);
-                polling_worker(&tx).await;
+                polling_worker().await;
             }
         });
     });
 }
 
-fn send_battery_update(tx: &Sender<BatteryData>) {
+/// Send battery update to event bus.
+#[inline]
+fn send_battery_update() {
     let data = get_battery_data();
-    println!("Battery update: {}%, {:?}", data.percentage, data.state);
-    let _ = tx.send(data);
+    events::send_battery(data);
 }
 
-async fn dbus_worker(
-    tx: &Sender<BatteryData>,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+async fn dbus_worker() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     use futures_util::stream::StreamExt;
     use zbus::{Connection, proxy};
 
@@ -189,7 +180,7 @@ async fn dbus_worker(
 
     while let Some(signal) = properties_changed.next().await {
         if signal.args().is_ok() {
-            send_battery_update(tx);
+            send_battery_update();
         }
     }
 
@@ -197,12 +188,12 @@ async fn dbus_worker(
     Ok(())
 }
 
-async fn polling_worker(tx: &Sender<BatteryData>) {
+async fn polling_worker() {
     use tokio::time::{Duration, sleep};
 
     println!("Using polling fallback (every 30 seconds)");
     loop {
         sleep(Duration::from_secs(30)).await;
-        send_battery_update(tx);
+        send_battery_update();
     }
 }
