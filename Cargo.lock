@@ -4835,7 +4835,6 @@ dependencies = [
 [[package]]
 name = "spell-framework"
 version = "1.0.0"
-source = "git+https://github.com/VimYoung/Spell#bf8fd4a27d73363dc80b53782498406cba1f5f9e"
 dependencies = [
  "env_logger",
  "event-listener",
