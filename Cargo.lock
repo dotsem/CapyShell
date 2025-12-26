@@ -11,7 +11,6 @@ dependencies = [
  "crossbeam-channel",
  "futures-util",
  "hyprland",
- "material-design-icons",
  "slint",
  "slint-build",
  "spell-framework",
@@ -3039,12 +3038,6 @@ checksum = "d1525a2a28c7f4fa0fc98bb91ae755d1e2d1505079e05539e35bc876b5d65ae9"
 dependencies = [
  "regex-automata",
 ]
-
-[[package]]
-name = "material-design-icons"
-version = "7.4.48"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "de4ae9d9037d3a25389a261952526dad800bcf25cdf510450306320927b693ec"
 
 [[package]]
 name = "maybe-rayon"
