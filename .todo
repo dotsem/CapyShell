@@ -1,3 +1,6 @@
 # TODO
 
 [ ] clean up `src/panels/taskbar/battery.rs`
+
+[ ] show amount of outdated packages in taskbar, updates every hour
+[ ] 
