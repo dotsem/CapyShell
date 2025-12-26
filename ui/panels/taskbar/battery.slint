@@ -1,79 +1,150 @@
+import { Icons } from "../../../material-1.0/ui/icons/icons.slint";
 
-import { ProgressIndicator } from "std-widgets.slint";
-
-export enum BatterState {
-    Charging,
-    Draining,
-    Unknown,
-    Critical,
-    Low,
-    S1,
-    S2,
-    S3,
-    S4,
-    S5,
-    S6,
-    Full,
-    ConnectedNotCharging,
+// Battery states matching available Material icons
+export enum BatteryState {
+    Unknown,        // battery_unknown
+    Alert,          // battery_alert (critical, 0-4%)
+    Bar0,           // battery_0_bar (5-14%)
+    Bar1,           // battery_1_bar (15-29%)
+    Bar2,           // battery_2_bar (30-44%)
+    Bar3,           // battery_3_bar (45-59%)
+    Bar4,           // battery_4_bar (60-74%)
+    Bar5,           // battery_5_bar (75-89%)
+    Bar6,           // battery_6_bar (90-99%)
+    Full,           // battery_full (100%)
+    Charging20,     // battery_charging_20 (0-25%)
+    Charging30,     // battery_charging_30 (26-50%)
+    Charging80,     // battery_charging_80 (51-75%)
+    Charging90,     // battery_charging_90 (76-99%)
+    ChargingFull,   // battery_full (100% while charging)
 }
 
 export struct BatteryData {
     percentage: int,
-    state: BatterState,
-    icon: string,
+    state: BatteryState,
+    time_remaining: string,
 }
 
 export component Battery {
-    in-out property <BatteryData> state: {
+    in-out property <BatteryData> data: {
         percentage: 0,
-        state: BatterState.Unknown,
-        icon: "",
+        state: BatteryState.Unknown,
+        time_remaining: "",
     };
 
-    pure function get-color(s: BatterState) -> color {
-        if (s == BatterState.Unknown) {
-            return #a855f7;
+    // Get icon based on state
+    pure function get-icon(s: BatteryState) -> image {
+        if s == BatteryState.Unknown {
+            return Icons.battery_unknown;
         }
-        if (s == BatterState.Critical) {
+        if s == BatteryState.Alert {
+            return Icons.battery_alert;
+        }
+        if s == BatteryState.Bar0 {
+            return Icons.battery_0_bar;
+        }
+        if s == BatteryState.Bar1 {
+            return Icons.battery_1_bar;
+        }
+        if s == BatteryState.Bar2 {
+            return Icons.battery_2_bar;
+        }
+        if s == BatteryState.Bar3 {
+            return Icons.battery_3_bar;
+        }
+        if s == BatteryState.Bar4 {
+            return Icons.battery_4_bar;
+        }
+        if s == BatteryState.Bar5 {
+            return Icons.battery_5_bar;
+        }
+        if s == BatteryState.Bar6 {
+            return Icons.battery_6_bar;
+        }
+        if s == BatteryState.Full {
+            return Icons.battery_full;
+        }
+        if s == BatteryState.Charging20 {
+            return Icons.battery_charging_20;
+        }
+        if s == BatteryState.Charging30 {
+            return Icons.battery_charging_30;
+        }
+        if s == BatteryState.Charging80 {
+            return Icons.battery_charging_80;
+        }
+        if s == BatteryState.Charging90 {
+            return Icons.battery_charging_90;
+        }
+        if s == BatteryState.ChargingFull {
+            return Icons.battery_full;
+        }
+        return Icons.battery_unknown;
+    }
+
+    // Get color based on state
+    pure function get-color(s: BatteryState) -> color {
+        // Critical / Alert
+        if s == BatteryState.Alert {
             return #ef4444;
         }
-        if (s == BatterState.Low) {
+        // Low states
+        if s == BatteryState.Bar0 {
             return #f97316;
         }
-        if (s == BatterState.S1) {
+        if s == BatteryState.Bar1 {
             return #eab308;
         }
-        if (s == BatterState.S2) {
-            return #ffffff;
-        }
-        if (s == BatterState.S3) {
-            return #ffffff;
-        }
-        if (s == BatterState.S4) {
-            return #ffffff;
-        }
-        if (s == BatterState.S5) {
-            return #ffffff;
-        }
-        if (s == BatterState.S6) {
-            return #ffffff;
-        }
-        if (s == BatterState.Full) {
-            return #22c55e;
-        }
-        if (s == BatterState.Charging) {
+        // Charging states
+        if s == BatteryState.Charging20 {
             return #3b82f6;
         }
-        if (s == BatterState.ConnectedNotCharging) {
+        if s == BatteryState.Charging30 {
+            return #3b82f6;
+        }
+        if s == BatteryState.Charging80 {
+            return #3b82f6;
+        }
+        if s == BatteryState.Charging90 {
+            return #3b82f6;
+        }
+        if s == BatteryState.ChargingFull {
+            return #22c55e;
+        }
+        // Full
+        if s == BatteryState.Full {
+            return #22c55e;
+        }
+        // Unknown
+        if s == BatteryState.Unknown {
             return #a855f7;
         }
+        // Normal states
         return #ffffff;
     }
 
-    // Component sizing - fits content
     HorizontalLayout {
         spacing: 6px;
         alignment: center;
+
+        // Percentage and time remaining
+        VerticalLayout {
+            alignment: center;
+            spacing: 2px;
+            Text {
+                text: root.data.percentage + "%";
+                font-size: 12px;
+                color: #f8f8f2;
+                font-weight: 600;
+                horizontal-alignment: right;
+            }
+
+            if root.data.time_remaining != "": Text {
+                text: root.data.time_remaining;
+                font-size: 9px;
+                color: #a0a0a0;
+            }
+        }
 
         // Circular indicator with icon
         Rectangle {
@@ -95,40 +166,28 @@ export component Battery {
                 viewbox-width: 100;
                 viewbox-height: 100;
                 commands: {
-                    if (root.state.percentage == 0) {
+                    if root.data.percentage == 0 {
                         ""
-                    } else if (root.state.percentage == 100) {
+                    } else if root.data.percentage == 100 {
                         "M 50 10 A 40 40 0 1 1 49.99 10"
                     } else {
-                        "M 50 10 A 40 40 0 " + (root.state.percentage > 50 ? "1" : "0") + " 1 " + (50 + 40 * sin(root.state.percentage * 3.6deg)) + " " + (50 - 40 * cos(root.state.percentage * 3.6deg))
+                        "M 50 10 A 40 40 0 " + (root.data.percentage > 50 ? "1" : "0") + " 1 " + (50 + 40 * sin(root.data.percentage * 3.6deg)) + " " + (50 - 40 * cos(root.data.percentage * 3.6deg))
                     }
                 };
-                stroke: get-color(root.state.state);
+                stroke: get-color(root.data.state);
                 stroke-width: 2px;
                 fill: transparent;
             }
             
-            // Icon (SVG Path) in Center
-            Path {
-                commands: root.state.icon;
+            // Battery Icon
+            Image {
+                source: get-icon(root.data.state);
                 width: 20px;
                 height: 20px;
                 x: (parent.width - self.width) / 2;
                 y: (parent.height - self.height) / 2;
-                viewbox-width: 24;
-                viewbox-height: 24;
-                fill: get-color(root.state.state);
-                stroke-width: 0;
+                colorize: get-color(root.data.state);
             }
-        }
-
-        // Percentage text
-        Text {
-            text: root.state.percentage + "%";
-            font-size: 12px;
-            color: #f8f8f2;
-            vertical-alignment: center;
-            font-weight: 600;
         }
     }
 }

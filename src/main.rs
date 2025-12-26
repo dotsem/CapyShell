@@ -3,7 +3,6 @@
 //! Single-process multi-window architecture with restart-on-hotplug.
 
 mod event_bus;
-mod icons;
 mod panels;
 
 use hyprland::data::{Monitor, Monitors};
@@ -78,32 +77,6 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     println!("Created {} windows", windows.len());
 
-    // --- Icon Cache (Strings) ---
-    // Using Symbols Nerd Font codepoints
-    let battery_icons = icons::Icons::new();
-
-    // Helper to get icon from state
-    let get_icon = |state: panels::taskbar::taskbar::BatterState,
-                    icons: &icons::Icons|
-     -> slint::SharedString {
-        use panels::taskbar::taskbar::BatterState;
-        match state {
-            BatterState::Unknown => icons.unknown.clone(),
-            BatterState::Critical => icons.critical.clone(),
-            BatterState::Low => icons.low.clone(),
-            BatterState::S1 => icons.s1.clone(),
-            BatterState::S2 => icons.s2.clone(),
-            BatterState::S3 => icons.s3.clone(),
-            BatterState::S4 => icons.s4.clone(),
-            BatterState::S5 => icons.s5.clone(),
-            BatterState::S6 => icons.s6.clone(),
-            BatterState::Full => icons.full.clone(),
-            BatterState::Charging => icons.charging.clone(),
-            BatterState::ConnectedNotCharging => icons.charging.clone(),
-            _ => icons.unknown.clone(),
-        }
-    };
-
     // Now create Slint UIs for each window
     let mut uis: Vec<Taskbar> = Vec::new();
     for (i, waywin) in windows.iter().enumerate() {
@@ -124,7 +97,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         // Event polling timer
         let event_rx = events::receiver();
         let ui_weak_events = ui.as_weak();
-        let icons_clone = battery_icons.clone();
 
         let event_timer = slint::Timer::default();
         event_timer.start(
@@ -139,13 +111,12 @@ fn main() -> Result<(), Box<dyn Error>> {
                     for event in events {
                         match event {
                             TaskbarEvent::Battery(status) => {
-                                // Map status -> view model using cached icons
                                 let data = panels::taskbar::taskbar::BatteryData {
                                     percentage: status.percentage,
                                     state: status.state,
-                                    icon: get_icon(status.state, &icons_clone),
+                                    time_remaining: status.time_remaining.into(),
                                 };
-                                ui.set_battery_state(data);
+                                ui.set_battery_data(data);
                             }
                         }
                     }
@@ -161,9 +132,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         let initial_data = panels::taskbar::taskbar::BatteryData {
             percentage: initial_status.percentage,
             state: initial_status.state,
-            icon: get_icon(initial_status.state, &battery_icons),
+            time_remaining: initial_status.time_remaining.into(),
         };
-        ui.set_battery_state(initial_data);
+        ui.set_battery_data(initial_data);
 
         // Keep timer alive
         std::mem::forget(event_timer);

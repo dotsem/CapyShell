@@ -4,29 +4,30 @@
 //! to the taskbar event bus.
 
 use crate::panels::taskbar::events;
-use crate::panels::taskbar::taskbar::BatterState;
+use crate::panels::taskbar::taskbar::BatteryState;
 use battery::{Battery, Manager, State};
 use std::thread;
 
 /// Thread-safe battery status for cross-thread communication.
-/// Does NOT contain slint::Image which is !Send.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct BatteryStatus {
     pub percentage: i32,
-    pub state: BatterState,
+    pub state: BatteryState,
+    pub time_remaining: String,
 }
 
-fn determine_battery_state(battery: &Battery) -> BatterState {
+/// Determine the battery state based on current status.
+fn determine_battery_state(battery: &Battery) -> BatteryState {
     let percentage = get_percentage(battery);
     let state = battery.state();
 
     match state {
-        State::Charging => BatterState::Charging,
-        State::Full => BatterState::Full,
-        State::Discharging => state_from_percentage(percentage),
-        State::Empty => BatterState::Critical,
+        State::Charging => charging_state_from_percentage(percentage),
+        State::Full => BatteryState::Full,
+        State::Discharging => discharging_state_from_percentage(percentage),
+        State::Empty => BatteryState::Alert,
         State::Unknown => handle_unknown_state(battery, percentage),
-        _ => BatterState::Unknown,
+        _ => BatteryState::Unknown,
     }
 }
 
@@ -35,36 +36,78 @@ fn get_percentage(battery: &Battery) -> i32 {
     (battery.state_of_charge().value * 100.0) as i32
 }
 
-fn state_from_percentage(percentage: i32) -> BatterState {
+/// Map percentage to discharging battery icon states.
+fn discharging_state_from_percentage(percentage: i32) -> BatteryState {
     match percentage {
-        0..=4 => BatterState::Critical,
-        5..=14 => BatterState::Low,
-        15..=29 => BatterState::S1,
-        30..=39 => BatterState::S2,
-        40..=49 => BatterState::S3,
-        50..=59 => BatterState::S4,
-        60..=79 => BatterState::S5,
-        80..=94 => BatterState::S6,
-        _ => BatterState::Full,
+        0..=4 => BatteryState::Alert,
+        5..=14 => BatteryState::Bar0,
+        15..=29 => BatteryState::Bar1,
+        30..=44 => BatteryState::Bar2,
+        45..=59 => BatteryState::Bar3,
+        60..=74 => BatteryState::Bar4,
+        75..=89 => BatteryState::Bar5,
+        90..=99 => BatteryState::Bar6,
+        _ => BatteryState::Full,
     }
 }
 
-fn handle_unknown_state(battery: &Battery, percentage: i32) -> BatterState {
+/// Map percentage to charging battery icon states.
+fn charging_state_from_percentage(percentage: i32) -> BatteryState {
+    match percentage {
+        0..=25 => BatteryState::Charging20,
+        26..=50 => BatteryState::Charging30,
+        51..=75 => BatteryState::Charging80,
+        76..=99 => BatteryState::Charging90,
+        _ => BatteryState::ChargingFull,
+    }
+}
+
+/// Handle unknown battery state by checking energy rate.
+fn handle_unknown_state(battery: &Battery, percentage: i32) -> BatteryState {
     let energy_rate = battery.energy_rate().value;
 
     if energy_rate > 0.0 {
-        BatterState::Charging
+        charging_state_from_percentage(percentage)
     } else if percentage >= 95 {
-        BatterState::Full
+        BatteryState::Full
     } else {
-        state_from_percentage(percentage)
+        discharging_state_from_percentage(percentage)
+    }
+}
+
+/// Format time remaining as "H:MM" string.
+fn format_time_remaining(battery: &Battery) -> String {
+    let state = battery.state();
+
+    let duration = match state {
+        State::Charging => battery.time_to_full(),
+        State::Discharging => battery.time_to_empty(),
+        _ => None,
+    };
+
+    match duration {
+        Some(time) => {
+            let total_minutes = (time.value / 60.0) as i32;
+            let hours = total_minutes / 60;
+            let minutes = total_minutes % 60;
+
+            let suffix = if state == State::Charging {
+                "until charged"
+            } else {
+                "remaining"
+            };
+
+            format!("{}:{:02} {}", hours, minutes, suffix)
+        }
+        None => String::new(),
     }
 }
 
 fn default_battery_status() -> BatteryStatus {
     BatteryStatus {
         percentage: 0,
-        state: BatterState::Unknown,
+        state: BatteryState::Unknown,
+        time_remaining: String::new(),
     }
 }
 
@@ -90,8 +133,13 @@ fn get_battery_from_manager(manager: Manager) -> BatteryStatus {
 
                 let percentage = get_percentage(&battery);
                 let state = determine_battery_state(&battery);
+                let time_remaining = format_time_remaining(&battery);
 
-                BatteryStatus { percentage, state }
+                BatteryStatus {
+                    percentage,
+                    state,
+                    time_remaining,
+                }
             }
             Some(Err(e)) => {
                 eprintln!("Error reading battery: {}", e);
@@ -110,7 +158,6 @@ fn get_battery_from_manager(manager: Manager) -> BatteryStatus {
 }
 
 /// Update the UI with current battery info (initial load).
-/// IMPORTANT: This function must be called on the MAIN thread to set images.
 pub fn get_initial_battery_status() -> BatteryStatus {
     get_battery_status()
 }

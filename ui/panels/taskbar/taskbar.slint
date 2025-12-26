@@ -1,5 +1,5 @@
 import { Clock, ClockState } from "clock.slint";
-import { Battery, BatteryData, BatterState } from "battery.slint";
+import { Battery, BatteryData, BatteryState } from "battery.slint";
 
 export component Taskbar inherits Window {
     // State properties
@@ -8,10 +8,10 @@ export component Taskbar inherits Window {
         date: "Mon, Jan 1",
     };
 
-    in-out property <BatteryData> battery-state: {
+    in-out property <BatteryData> battery-data: {
         percentage: 0,
-        state: BatterState.Unknown,
-        icon: "",
+        state: BatteryState.Unknown,
+        time_remaining: "",
     };
 
     // Callbacks
@@ -54,7 +54,7 @@ export component Taskbar inherits Window {
             alignment: end;
 
             Battery {
-                state: root.battery-state;
+                data: root.battery-data;
             }
 
             Clock {
