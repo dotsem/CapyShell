@@ -81,12 +81,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Now create Slint UIs for each window
     let mut uis: Vec<Taskbar> = Vec::new();
-    for (i, waywin) in windows.iter().enumerate() {
+    for (i, _waywin) in windows.iter().enumerate() {
         let ui = Taskbar::new()?;
-
-        // Setup input region
-        let actual_size = ui.window().size();
-        waywin.subtract_input_region(0, 0, actual_size.width as i32, actual_size.height as i32);
 
         // Clock callback
         let ui_weak_clock = ui.as_weak();

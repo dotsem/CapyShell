@@ -9,6 +9,12 @@ import { TaskbarNetwork } from "network.slint";
 import { NetworkState } from "network.slint";
 import { TaskbarBluetooth } from "bluetooth.slint";
 import { BluetoothState } from "bluetooth.slint";
+import {
+    StateLayerArea,
+} from "../../../material-1.0/ui/components/state_layer.slint";
+import {
+    MaterialStyleMetrics,
+} from "../../../material-1.0/ui/styling/material_style_metrics.slint";
 
 export component Taskbar inherits Window {
     init => {
@@ -77,16 +83,23 @@ export component Taskbar inherits Window {
                 state: root.clock-state;
             }
 
-            TaskbarVolume {
-                volume: root.volume;
-            }
+            VerticalLayout {
+                alignment: center;
+                HorizontalLayout {
+                    spacing: 0;
 
-            TaskbarNetwork {
-                state: root.network-state;
-            }
+                    TaskbarVolume {
+                        volume: root.volume;
+                    }
 
-            if root.has-bluetooth: TaskbarBluetooth {
-                state: root.bluetooth-state;
+                    TaskbarNetwork {
+                        state: root.network-state;
+                    }
+
+                    if root.has-bluetooth: TaskbarBluetooth {
+                        state: root.bluetooth-state;
+                    }
+                }
             }
         }
     }
