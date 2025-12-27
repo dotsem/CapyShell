@@ -4,17 +4,18 @@
 
 mod event_bus;
 mod panels;
+mod services;
 
 use hyprland::data::{Monitor, Monitors};
 use hyprland::shared::HyprData;
 use log::{debug, error, info, warn};
 use panels::taskbar::events::TaskbarEvent;
 use panels::taskbar::taskbar::Taskbar;
-use panels::taskbar::{battery, clock, events, hyprland_events};
+use panels::taskbar::{battery, clock, events, volume};
 use slint::ComponentHandle;
 use spell_framework::{
     enchant_spells,
-    layer_properties::{BoardType, LayerAnchor, WindowConf},
+    layer_properties::{BoardType, LayerAnchor, LayerType, WindowConf},
     slint_adapter::SpellMultiWinHandler,
     wayland_adapter::SpellWin,
 };
@@ -26,8 +27,8 @@ const EVENT_POLL_INTERVAL_MS: u64 = 50;
 fn main() -> Result<(), Box<dyn Error>> {
     info!("Starting CapyShell...");
 
-    // Start shared background services ONCE (if available)
-    let has_battery = battery::start_battery_monitor();
+    // Start shared background services ONCE
+    let service_status = services::start_all();
 
     // Get all monitors
     let monitors: Vec<Monitor> = match Monitors::get() {
@@ -58,7 +59,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     None,
                 ),
                 (0, 0, 0, 0),
-                spell_framework::layer_properties::LayerType::Top,
+                LayerType::Top,
                 BoardType::None,
                 Some(TASKBAR_HEIGHT as i32),
                 Some(m.name.clone()),
@@ -112,12 +113,10 @@ fn main() -> Result<(), Box<dyn Error>> {
                     for event in events {
                         match event {
                             TaskbarEvent::Battery(status) => {
-                                let data = panels::taskbar::taskbar::BatteryData {
-                                    percentage: status.percentage,
-                                    state: status.state,
-                                    time_remaining: status.time_remaining.into(),
-                                };
-                                ui.set_battery_data(data);
+                                battery::update_ui(&ui, &status);
+                            }
+                            TaskbarEvent::Volume(status) => {
+                                volume::update_ui(&ui, &status);
                             }
                         }
                     }
@@ -129,15 +128,15 @@ fn main() -> Result<(), Box<dyn Error>> {
         clock::update_clock(&ui);
 
         // Battery setup (only if battery is present)
-        ui.set_has_battery(has_battery);
-        if has_battery {
-            let initial_status = battery::get_initial_battery_status();
-            let initial_data = panels::taskbar::taskbar::BatteryData {
-                percentage: initial_status.percentage,
-                state: initial_status.state,
-                time_remaining: initial_status.time_remaining.into(),
-            };
-            ui.set_battery_data(initial_data);
+        ui.set_has_battery(service_status.has_battery);
+        if service_status.has_battery {
+            let initial_status = services::battery::get_status();
+            battery::update_ui(&ui, &initial_status);
+        }
+
+        // Initial volume state
+        if let Some(volume_status) = services::volume::get_default_volume() {
+            volume::update_ui(&ui, &volume_status);
         }
 
         // Keep timer alive
@@ -146,9 +145,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         uis.push(ui);
         debug!("Initialized UI for monitor {}", i);
     }
-
-    // Start hotplug listener that triggers restart
-    hyprland_events::start_restart_listener();
 
     info!("CapyShell running with {} taskbars.", windows.len());
 

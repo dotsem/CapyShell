@@ -1,0 +1,31 @@
+import { Icons } from "../../../material-1.0/ui/icons/icons.slint";
+import {
+    BaseButton,
+} from "../../../material-1.0/ui/components/base_button.slint";
+import {
+    MaterialPalette,
+} from "../../../material-1.0/ui/styling/material_palette.slint";
+
+export component Volume inherits BaseButton {
+    in property <int> volume;
+
+    color: MaterialPalette.on_surface;
+
+    icon: {
+        if root.volume == 0 {
+            return Icons.volume_off;
+        } else if root.volume < 50 {
+            return Icons.volume_down;
+        } else {
+            return Icons.volume_up;
+        }
+    };
+
+    text: {
+        if root.volume == 0 {
+            return "Muted";
+        } else {
+            return root.volume + "%";
+        }
+    };
+}

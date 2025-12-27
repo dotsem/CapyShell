@@ -1,19 +1,17 @@
-//! Hyprland event listener for monitor hotplug.
+//! Hyprland event listener for monitor hotplug and system events.
 //!
 //! When monitors are added or removed, triggers application restart
 //! to recreate taskbars for the new monitor configuration.
 
 use hyprland::event_listener::EventListener;
-use std::thread;
-
 use log::{error, info};
-/// Start a listener that triggers application restart on monitor changes.
-/// This allows the single-process architecture to handle hotplug by restarting.
 use std::os::unix::process::CommandExt;
 use std::process::Command;
+use std::thread;
+
 /// Start a listener that triggers application restart on monitor changes.
 /// This allows the single-process architecture to handle hotplug by restarting.
-pub fn start_restart_listener() {
+pub fn start_listener() {
     thread::spawn(move || {
         let mut listener = EventListener::new();
 

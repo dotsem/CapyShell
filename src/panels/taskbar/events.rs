@@ -4,7 +4,8 @@
 //! Per-monitor events can be filtered by the receiver using the monitor tag.
 
 use crate::event_bus::CHANNEL_CAPACITY;
-use crate::panels::taskbar::battery::BatteryStatus;
+use crate::services::battery::BatteryStatus;
+use crate::services::volume::VolumeStatus;
 use std::sync::OnceLock;
 use tokio::sync::broadcast::{self, Receiver, Sender};
 
@@ -13,6 +14,7 @@ use tokio::sync::broadcast::{self, Receiver, Sender};
 pub enum TaskbarEvent {
     // Global events (same for all monitors)
     Battery(BatteryStatus),
+    Volume(VolumeStatus),
     // Future per-monitor events will include a monitor tag:
     // Workspace { monitor: String, data: WorkspaceData },
     // ActiveWindow { monitor: String, data: WindowData },
@@ -24,6 +26,7 @@ impl TaskbarEvent {
     pub fn variant_index(&self) -> usize {
         match self {
             TaskbarEvent::Battery(_) => 0,
+            TaskbarEvent::Volume(_) => 1,
         }
     }
 }
@@ -49,6 +52,12 @@ pub fn send(event: TaskbarEvent) {
 #[inline]
 pub fn send_battery(data: BatteryStatus) {
     send(TaskbarEvent::Battery(data));
+}
+
+/// Send volume data to all taskbars.
+#[inline]
+pub fn send_volume(data: VolumeStatus) {
+    send(TaskbarEvent::Volume(data));
 }
 
 /// Subscribe to the event bus. Each taskbar gets its own receiver.
