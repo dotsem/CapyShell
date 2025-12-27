@@ -25,8 +25,8 @@ const EVENT_POLL_INTERVAL_MS: u64 = 50;
 fn main() -> Result<(), Box<dyn Error>> {
     println!("Starting CapyShell...");
 
-    // Start shared background services ONCE
-    battery::start_battery_monitor();
+    // Start shared background services ONCE (if available)
+    let has_battery = battery::start_battery_monitor();
 
     // Get all monitors
     let monitors: Vec<Monitor> = match Monitors::get() {
@@ -127,14 +127,17 @@ fn main() -> Result<(), Box<dyn Error>> {
         // Initial state
         clock::update_clock(&ui);
 
-        // Initial battery
-        let initial_status = battery::get_initial_battery_status();
-        let initial_data = panels::taskbar::taskbar::BatteryData {
-            percentage: initial_status.percentage,
-            state: initial_status.state,
-            time_remaining: initial_status.time_remaining.into(),
-        };
-        ui.set_battery_data(initial_data);
+        // Battery setup (only if battery is present)
+        ui.set_has_battery(has_battery);
+        if has_battery {
+            let initial_status = battery::get_initial_battery_status();
+            let initial_data = panels::taskbar::taskbar::BatteryData {
+                percentage: initial_status.percentage,
+                state: initial_status.state,
+                time_remaining: initial_status.time_remaining.into(),
+            };
+            ui.set_battery_data(initial_data);
+        }
 
         // Keep timer alive
         std::mem::forget(event_timer);

@@ -14,6 +14,9 @@ export component Taskbar inherits Window {
         time_remaining: "",
     };
 
+    // Whether a battery is present on the system
+    in-out property <bool> has-battery: false;
+
     // Callbacks
     callback update-clock();
     callback update-battery();
@@ -53,7 +56,7 @@ export component Taskbar inherits Window {
             spacing: 8px;
             alignment: end;
 
-            Battery {
+            if root.has-battery: Battery {
                 data: root.battery-data;
             }
 
