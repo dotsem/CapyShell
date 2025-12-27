@@ -6,6 +6,7 @@
 use crate::panels::taskbar::events;
 use crate::panels::taskbar::taskbar::BatteryState;
 use battery::{Battery, Manager, State};
+use log::{error, info, warn};
 use std::thread;
 
 /// Check if the system has any batteries available.
@@ -126,7 +127,7 @@ pub fn get_battery_status() -> BatteryStatus {
     match Manager::new() {
         Ok(manager) => get_battery_from_manager(manager),
         Err(e) => {
-            eprintln!("Failed to create battery manager: {}", e);
+            error!("Failed to create battery manager: {}", e);
             default_battery_status()
         }
     }
@@ -137,7 +138,7 @@ fn get_battery_from_manager(manager: Manager) -> BatteryStatus {
         Ok(mut batteries) => match batteries.next() {
             Some(Ok(mut battery)) => {
                 if let Err(e) = manager.refresh(&mut battery) {
-                    eprintln!("Failed to refresh battery: {}", e);
+                    error!("Failed to refresh battery: {}", e);
                     return default_battery_status();
                 }
 
@@ -152,16 +153,16 @@ fn get_battery_from_manager(manager: Manager) -> BatteryStatus {
                 }
             }
             Some(Err(e)) => {
-                eprintln!("Error reading battery: {}", e);
+                error!("Error reading battery: {}", e);
                 default_battery_status()
             }
             None => {
-                eprintln!("No battery found");
+                error!("No battery found");
                 default_battery_status()
             }
         },
         Err(e) => {
-            eprintln!("Failed to get batteries: {}", e);
+            error!("Failed to get batteries: {}", e);
             default_battery_status()
         }
     }
@@ -178,17 +179,17 @@ pub fn get_initial_battery_status() -> BatteryStatus {
 pub fn start_battery_monitor() -> bool {
     // Check for battery availability first
     if !has_battery() {
-        println!("No battery detected, skipping battery monitor");
+        info!("No battery detected, skipping battery monitor");
         return false;
     }
 
-    println!("Starting battery monitor...");
+    info!("Starting battery monitor...");
 
     thread::spawn(move || {
         let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
         rt.block_on(async {
             if let Err(e) = dbus_worker().await {
-                eprintln!("D-Bus worker failed: {}. Falling back to polling.", e);
+                warn!("D-Bus worker failed: {}. Falling back to polling.", e);
                 polling_worker().await;
             }
         });
@@ -222,7 +223,7 @@ async fn dbus_worker() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     let mut stream = zbus::MessageStream::for_match_rule(rule, &connection, Some(100)).await?;
 
-    println!("Listening for battery D-Bus signals...");
+    info!("Listening for battery D-Bus signals...");
 
     while let Some(msg) = stream.next().await {
         if let Ok(msg) = msg {
@@ -236,14 +237,14 @@ async fn dbus_worker() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         }
     }
 
-    eprintln!("D-Bus signal stream ended");
+    info!("D-Bus signal stream ended");
     Ok(())
 }
 
 async fn polling_worker() {
     use tokio::time::{Duration, sleep};
 
-    println!("Using polling fallback (every 10 seconds)");
+    info!("Using polling fallback (every 10 seconds)");
     loop {
         sleep(Duration::from_secs(10)).await;
         send_battery_update();

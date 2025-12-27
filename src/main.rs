@@ -7,6 +7,7 @@ mod panels;
 
 use hyprland::data::{Monitor, Monitors};
 use hyprland::shared::HyprData;
+use log::{debug, error, info, warn};
 use panels::taskbar::events::TaskbarEvent;
 use panels::taskbar::taskbar::Taskbar;
 use panels::taskbar::{battery, clock, events, hyprland_events};
@@ -23,7 +24,7 @@ const TASKBAR_HEIGHT: u32 = 48;
 const EVENT_POLL_INTERVAL_MS: u64 = 50;
 
 fn main() -> Result<(), Box<dyn Error>> {
-    println!("Starting CapyShell...");
+    info!("Starting CapyShell...");
 
     // Start shared background services ONCE (if available)
     let has_battery = battery::start_battery_monitor();
@@ -32,17 +33,17 @@ fn main() -> Result<(), Box<dyn Error>> {
     let monitors: Vec<Monitor> = match Monitors::get() {
         Ok(monitors) => monitors.iter().cloned().collect(),
         Err(e) => {
-            eprintln!("Failed to get monitors: {}", e);
+            error!("Failed to get monitors: {}", e);
             return Err(e.into());
         }
     };
 
     if monitors.is_empty() {
-        eprintln!("No monitors found!");
+        warn!("No monitors found!");
         return Ok(());
     }
 
-    println!("Found {} monitors", monitors.len());
+    debug!("Found {} monitors", monitors.len());
 
     // Create window configs for all monitors
     let configs: Vec<(String, WindowConf)> = monitors
@@ -75,7 +76,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Create all windows at once (sets up shared Slint platform)
     let windows: Vec<SpellWin> = SpellMultiWinHandler::conjure_spells(configs_ref);
 
-    println!("Created {} windows", windows.len());
+    debug!("Created {} windows", windows.len());
 
     // Now create Slint UIs for each window
     let mut uis: Vec<Taskbar> = Vec::new();
@@ -143,13 +144,13 @@ fn main() -> Result<(), Box<dyn Error>> {
         std::mem::forget(event_timer);
 
         uis.push(ui);
-        println!("Initialized UI for monitor {}", i);
+        debug!("Initialized UI for monitor {}", i);
     }
 
     // Start hotplug listener that triggers restart
     hyprland_events::start_restart_listener();
 
-    println!("CapyShell running with {} taskbars.", windows.len());
+    info!("CapyShell running with {} taskbars.", windows.len());
 
     // Run all windows in single-threaded event loop
     let num_windows = windows.len();
