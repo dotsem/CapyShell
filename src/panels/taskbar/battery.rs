@@ -6,86 +6,16 @@
 use crate::panels::taskbar::events;
 use crate::panels::taskbar::taskbar::BatteryState;
 use battery::{Battery, Manager, State};
-use std::sync::OnceLock;
 use std::thread;
 
-/// Cached list of battery device paths (e.g., ["/org/freedesktop/UPower/devices/battery_BAT1"])
-static BATTERY_DEVICES: OnceLock<Vec<String>> = OnceLock::new();
-
 /// Check if the system has any batteries available.
+/// Uses the battery crate to detect batteries.
 pub fn has_battery() -> bool {
-    !get_battery_devices().is_empty()
-}
-
-/// Get list of battery device paths from the system.
-/// Caches the result for subsequent calls.
-fn get_battery_devices() -> &'static Vec<String> {
-    BATTERY_DEVICES.get_or_init(|| discover_battery_devices_sync())
-}
-
-/// Discover battery devices by querying UPower D-Bus synchronously.
-fn discover_battery_devices_sync() -> Vec<String> {
-    // Run async discovery in a blocking context
-    std::thread::scope(|_| {
-        let rt = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .ok();
-
-        match rt {
-            Some(rt) => rt
-                .block_on(discover_battery_devices_async())
-                .unwrap_or_default(),
-            None => {
-                // Fallback: check if battery crate finds any batteries
-                if Manager::new()
-                    .ok()
-                    .and_then(|m| m.batteries().ok())
-                    .map(|mut b| b.next().is_some())
-                    .unwrap_or(false)
-                {
-                    println!("Battery detected via fallback, using generic path");
-                    vec!["/org/freedesktop/UPower/devices/battery_BAT".to_string()]
-                } else {
-                    vec![]
-                }
-            }
-        }
-    })
-}
-
-/// Discover battery devices via UPower D-Bus.
-async fn discover_battery_devices_async() -> Option<Vec<String>> {
-    use zbus::Connection;
-    use zbus::proxy;
-    use zbus::zvariant::OwnedObjectPath;
-
-    #[proxy(
-        interface = "org.freedesktop.UPower",
-        default_service = "org.freedesktop.UPower",
-        default_path = "/org/freedesktop/UPower"
-    )]
-    trait UPower {
-        fn enumerate_devices(&self) -> zbus::Result<Vec<OwnedObjectPath>>;
-    }
-
-    let connection = Connection::system().await.ok()?;
-    let proxy = UPowerProxy::new(&connection).await.ok()?;
-    let devices = proxy.enumerate_devices().await.ok()?;
-
-    let battery_paths: Vec<String> = devices
-        .into_iter()
-        .map(|path| path.to_string())
-        .filter(|path| path.contains("/battery_BAT"))
-        .collect();
-
-    if battery_paths.is_empty() {
-        println!("No battery devices found via UPower");
-    } else {
-        println!("Found battery devices via UPower: {:?}", battery_paths);
-    }
-
-    Some(battery_paths)
+    Manager::new()
+        .ok()
+        .and_then(|m| m.batteries().ok())
+        .map(|mut b| b.next().is_some())
+        .unwrap_or(false)
 }
 
 /// Thread-safe battery status for cross-thread communication.
@@ -278,40 +208,31 @@ async fn dbus_worker() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     use futures_util::stream::StreamExt;
     use zbus::Connection;
 
-    let battery_paths = get_battery_devices();
-    if battery_paths.is_empty() {
-        return Err("No battery devices to monitor".into());
-    }
-
     let connection = Connection::system().await?;
 
-    // Create streams for each battery device
-    let mut streams = Vec::new();
-    for path in battery_paths {
-        let rule = zbus::MatchRule::builder()
-            .msg_type(zbus::message::Type::Signal)
-            .interface("org.freedesktop.DBus.Properties")?
-            .member("PropertiesChanged")?
-            .path(path.as_str())?
-            .build();
+    // Listen for PropertiesChanged on all UPower devices
+    // We filter for battery devices in the handler since path_namespace
+    // only matches child paths (with /), not path name continuations
+    let rule = zbus::MatchRule::builder()
+        .msg_type(zbus::message::Type::Signal)
+        .interface("org.freedesktop.DBus.Properties")?
+        .member("PropertiesChanged")?
+        .path_namespace("/org/freedesktop/UPower/devices")?
+        .build();
 
-        let stream = zbus::MessageStream::for_match_rule(rule, &connection, Some(100)).await?;
+    let mut stream = zbus::MessageStream::for_match_rule(rule, &connection, Some(100)).await?;
 
-        streams.push(stream);
-        println!("Listening for D-Bus signals on: {}", path);
-    }
+    println!("Listening for battery D-Bus signals...");
 
-    // Merge all streams into one using select_all
-    let mut merged = futures_util::stream::select_all(streams);
-
-    println!(
-        "Battery D-Bus monitoring active for {} device(s)",
-        battery_paths.len()
-    );
-
-    while let Some(msg) = merged.next().await {
-        if msg.is_ok() {
-            send_battery_update();
+    while let Some(msg) = stream.next().await {
+        if let Ok(msg) = msg {
+            // Filter for battery devices only
+            if let Some(path) = msg.header().path() {
+                let path_str = path.as_str();
+                if path_str.contains("battery_BAT") {
+                    send_battery_update();
+                }
+            }
         }
     }
 
