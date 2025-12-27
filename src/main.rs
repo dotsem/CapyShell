@@ -11,7 +11,7 @@ use hyprland::shared::HyprData;
 use log::{debug, error, info, warn};
 use panels::taskbar::events::TaskbarEvent;
 use panels::taskbar::taskbar::Taskbar;
-use panels::taskbar::{battery, clock, events, volume};
+use panels::taskbar::{battery, clock, events, network, volume};
 use slint::ComponentHandle;
 use spell_framework::{
     enchant_spells,
@@ -118,6 +118,9 @@ fn main() -> Result<(), Box<dyn Error>> {
                             TaskbarEvent::Volume(status) => {
                                 volume::update_ui(&ui, &status);
                             }
+                            TaskbarEvent::Network(status) => {
+                                network::update_ui(&ui, &status);
+                            }
                         }
                     }
                 }
@@ -138,6 +141,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         if let Some(volume_status) = services::volume::get_default_volume() {
             volume::update_ui(&ui, &volume_status);
         }
+
+        // Initial network state
+        let initial_network = services::network::get_status();
+        network::update_ui(&ui, &initial_network);
 
         // Keep timer alive
         std::mem::forget(event_timer);

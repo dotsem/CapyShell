@@ -1,10 +1,12 @@
 import { Clock, ClockState } from "clock.slint";
-import { Battery, BatteryData, BatteryState } from "battery.slint";
-import { Volume } from "volume.slint";
+import { TaskbarBattery, BatteryData, BatteryState } from "battery.slint";
+import { TaskbarVolume } from "volume.slint";
 import {
     MaterialPalette,
 } from "../../../material-1.0/ui/styling/material_palette.slint";
 import { Palette } from "std-widgets.slint";
+import { TaskbarNetwork } from "network.slint";
+import { NetworkState } from "network.slint";
 
 
 export component Taskbar inherits Window {
@@ -26,14 +28,9 @@ export component Taskbar inherits Window {
 
     in-out property <int> volume: 0;
 
-    // Whether a battery is present on the system
     in-out property <bool> has-battery: false;
-
-    // Callbacks
+    in-out property <NetworkState> network-state: NetworkState.NotConnected;
     callback update-clock();
-    callback update-battery();
-    
-    // Timer to update clock every second
     Timer {
         interval: 1s;
         running: true;
@@ -68,7 +65,7 @@ export component Taskbar inherits Window {
             spacing: 8px;
             alignment: end;
 
-            if root.has-battery: Battery {
+            if root.has-battery: TaskbarBattery {
                 data: root.battery-data;
             }
 
@@ -76,8 +73,12 @@ export component Taskbar inherits Window {
                 state: root.clock-state;
             }
 
-            Volume {
+            TaskbarVolume {
                 volume: root.volume;
+            }
+
+            TaskbarNetwork {
+                state: root.network-state;
             }
         }
     }

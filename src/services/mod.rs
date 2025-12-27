@@ -6,9 +6,11 @@
 //! - `hyprland` - Monitor hotplug, workspaces, window focus
 //! - `volume` - PulseAudio/PipeWire volume monitoring
 //! - `battery` - Battery status via D-Bus
+//! - `network` - Network status via NetworkManager D-Bus
 
 pub mod battery;
 pub mod hyprland;
+pub mod network;
 pub mod volume;
 
 use log::info;
@@ -20,6 +22,7 @@ pub fn start_all() -> ServiceStatus {
 
     let has_battery = battery::start_monitor();
     volume::start_monitor();
+    network::start_monitor();
     hyprland::start_listener();
 
     ServiceStatus { has_battery }

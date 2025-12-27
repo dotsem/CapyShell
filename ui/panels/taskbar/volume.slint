@@ -5,11 +5,19 @@ import {
 import {
     MaterialPalette,
 } from "../../../material-1.0/ui/styling/material_palette.slint";
+import {
+    MaterialStyleMetrics,
+} from "../../../material-1.0/ui/styling/material_style_metrics.slint";
 
-export component Volume inherits BaseButton {
+export component TaskbarVolume inherits BaseButton {
     in property <int> volume;
 
     color: MaterialPalette.on_surface;
+
+    button_horizontal_padding: MaterialStyleMetrics.padding_4;
+    button_vertical_padding: MaterialStyleMetrics.padding_4;
+    min_layout_width: MaterialStyleMetrics.size_16;
+    spacing: MaterialStyleMetrics.spacing_4;
 
     icon: {
         if root.volume == 0 {
@@ -20,6 +28,7 @@ export component Volume inherits BaseButton {
             return Icons.volume_up;
         }
     };
+    icon_size: MaterialStyleMetrics.icon_size_24;
 
     text: {
         if root.volume == 0 {

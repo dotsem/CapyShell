@@ -28,7 +28,7 @@ export struct BatteryData {
     time_remaining: string,
 }
 
-export component Battery {
+export component TaskbarBattery {
     in-out property <BatteryData> data;
 
     pure function is-charging(s: BatteryState) -> bool {

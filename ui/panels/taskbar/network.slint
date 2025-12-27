@@ -1,0 +1,88 @@
+import { AboutSlint, VerticalBox } from "std-widgets.slint";
+import {
+    IconButton,
+} from "../../../material-1.0/ui/components/icon_button.slint";
+import { Icons } from "../../../material-1.0/ui/icons/icons.slint";
+import {
+    MaterialPalette,
+} from "../../../material-1.0/ui/styling/material_palette.slint";
+import {
+    BaseButton,
+} from "../../../material-1.0/ui/components/base_button.slint";
+import {
+    MaterialStyleMetrics,
+} from "../../../material-1.0/ui/styling/material_style_metrics.slint";
+
+
+export enum NetworkState {
+    Lan,
+    NotConnected,
+    Off,
+    Bad,
+    Connected0,
+    Connected1,
+    Connected2,
+    Connected3,
+    Connected4,
+
+}
+
+export component TaskbarNetwork inherits BaseButton {
+    in property <NetworkState> state;
+
+    icon: get-icon(root.state);
+    color: get-color(root.state);
+    icon_size: MaterialStyleMetrics.icon_size_24;
+    min_layout_width: MaterialStyleMetrics.size_16;
+    button_horizontal_padding: MaterialStyleMetrics.padding_4;
+    button_vertical_padding: MaterialStyleMetrics.padding_4;
+
+    pure function get-icon(s: NetworkState) -> image {
+        if s == NetworkState.Lan {
+            return Icons.lan;
+        }
+        if s == NetworkState.NotConnected {
+            return Icons.signal_wifi_off;
+        }
+        if s == NetworkState.Off {
+            return Icons.signal_wifi_off;
+        }
+        if s == NetworkState.Bad {
+            return Icons.signal_wifi_bad;
+        }
+        if s == NetworkState.Connected0 {
+            return Icons.signal_wifi_statusbar_null;
+        }
+        // weird naming, I know, but this is how it is downloaded from 
+        // the material icons font website
+        if s == NetworkState.Connected1 {
+            return Icons.network_wifi_1_bar;
+        }
+        if s == NetworkState.Connected2 {
+            return Icons.network_wifi_2_bar;
+        }
+        if s == NetworkState.Connected3 {
+            return Icons.network_wifi_3_bar;
+        }
+        if s == NetworkState.Connected4 {
+            return Icons.signal_wifi_4_bar;
+        }
+        return Icons.signal_wifi_off;
+    }
+
+    pure function get-color(s: NetworkState) -> color {
+        if s == NetworkState.Lan {
+            return #67B60CFF;
+        }
+        if s == NetworkState.NotConnected || s == NetworkState.Off {
+            return #00D5FFFF;
+        }
+        if s == NetworkState.Bad {
+            return #ef4444;
+        }
+        if s == NetworkState.Connected0 {
+            return #FFD900;
+        }
+        return MaterialPalette.on_surface;
+    }
+}
