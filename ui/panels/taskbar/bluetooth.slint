@@ -1,0 +1,44 @@
+import {
+    BaseButton,
+} from "../../../material-1.0/ui/components/base_button.slint";
+import {
+    MaterialStyleMetrics,
+} from "../../../material-1.0/ui/styling/material_style_metrics.slint";
+import {
+    MaterialPalette,
+} from "../../../material-1.0/ui/styling/material_palette.slint";
+import {
+    Icons,
+} from "../../../material-1.0/ui/icons/icons.slint";
+
+export enum BluetoothState {
+    Off,
+    On,
+    Searching,
+    Connected,
+}
+
+
+export component TaskbarBluetooth inherits BaseButton {
+    in property <BluetoothState> state;
+
+    icon: get-icon(root.state);
+    color: MaterialPalette.on_surface;
+    icon_size: MaterialStyleMetrics.icon_size_24;
+    min_layout_width: MaterialStyleMetrics.size_16;
+    button_horizontal_padding: MaterialStyleMetrics.padding_4;
+    button_vertical_padding: MaterialStyleMetrics.padding_4;
+
+    pure function get-icon(s: BluetoothState) -> image {
+        if s == BluetoothState.On {
+            return Icons.bluetooth;
+        }
+        if s == BluetoothState.Searching {
+            return Icons.bluetooth_searching;
+        }
+        if s == BluetoothState.Connected {
+            return Icons.bluetooth_connected;
+        }
+        return Icons.bluetooth_disabled;
+    }
+}

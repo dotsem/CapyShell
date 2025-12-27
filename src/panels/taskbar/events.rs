@@ -5,6 +5,7 @@
 
 use crate::event_bus::CHANNEL_CAPACITY;
 use crate::services::battery::BatteryStatus;
+use crate::services::bluetooth::BluetoothStatus;
 use crate::services::network::NetworkStatus;
 use crate::services::volume::VolumeStatus;
 use std::sync::OnceLock;
@@ -17,6 +18,7 @@ pub enum TaskbarEvent {
     Battery(BatteryStatus),
     Volume(VolumeStatus),
     Network(NetworkStatus),
+    Bluetooth(BluetoothStatus),
     // Future per-monitor events will include a monitor tag:
     // Workspace { monitor: String, data: WorkspaceData },
     // ActiveWindow { monitor: String, data: WindowData },
@@ -30,6 +32,7 @@ impl TaskbarEvent {
             TaskbarEvent::Battery(_) => 0,
             TaskbarEvent::Volume(_) => 1,
             TaskbarEvent::Network(_) => 2,
+            TaskbarEvent::Bluetooth(_) => 3,
         }
     }
 }
@@ -67,6 +70,12 @@ pub fn send_volume(data: VolumeStatus) {
 #[inline]
 pub fn send_network(data: NetworkStatus) {
     send(TaskbarEvent::Network(data));
+}
+
+/// Send bluetooth data to all taskbars.
+#[inline]
+pub fn send_bluetooth(data: BluetoothStatus) {
+    send(TaskbarEvent::Bluetooth(data));
 }
 
 /// Subscribe to the event bus. Each taskbar gets its own receiver.

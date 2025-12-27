@@ -1,7 +1,7 @@
-//! Network monitoring service using NetworkManager via nmrs.
+//! Network monitoring service using NetworkManager via D-Bus.
 //!
 //! Monitors network state and broadcasts changes to all panels via the event bus.
-//! Uses the nmrs crate for async NetworkManager D-Bus communication.
+//! Uses zbus for D-Bus signal monitoring with nmrs for querying state.
 
 use crate::panels::taskbar::events;
 use log::{debug, error, info, warn};
@@ -42,7 +42,6 @@ impl Default for NetworkStatus {
 
 /// Get current network status (blocking call for initial state).
 pub fn get_status() -> NetworkStatus {
-    // Use a blocking approach for initial state
     let rt = match tokio::runtime::Runtime::new() {
         Ok(rt) => rt,
         Err(e) => {
@@ -68,8 +67,9 @@ pub fn start_monitor() {
         };
 
         rt.block_on(async {
-            if let Err(e) = run_monitor().await {
-                error!("Network monitor failed: {}", e);
+            if let Err(e) = dbus_worker().await {
+                warn!("D-Bus worker failed: {}. Falling back to polling.", e);
+                polling_worker().await;
             }
         });
     });
@@ -93,9 +93,6 @@ async fn fetch_network_status() -> NetworkStatus {
     let connected = ssid.is_some();
 
     if !connected {
-        // Check if we have ethernet instead
-        // For now, we consider "no SSID" as potentially ethernet or disconnected
-        // We'll check device state for more accuracy
         return check_ethernet_status(&nm).await;
     }
 
@@ -111,11 +108,9 @@ async fn fetch_network_status() -> NetworkStatus {
 }
 
 async fn check_ethernet_status(nm: &nmrs::NetworkManager) -> NetworkStatus {
-    // Check devices for active ethernet connection
     match nm.list_devices().await {
         Ok(devices) => {
             for device in devices {
-                // Check if device is ethernet and connected
                 if device.device_type == nmrs::DeviceType::Ethernet {
                     if device.state == nmrs::DeviceState::Activated {
                         return NetworkStatus {
@@ -144,7 +139,6 @@ async fn get_current_signal_strength(
         return None;
     };
 
-    // List networks to find signal strength of current network
     match nm.list_networks().await {
         Ok(networks) => {
             for net in networks {
@@ -161,32 +155,9 @@ async fn get_current_signal_strength(
     None
 }
 
-async fn run_monitor() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    use nmrs::NetworkManager;
-
-    let nm = NetworkManager::new().await?;
-    info!("Connected to NetworkManager, starting network monitor...");
-
-    // Send initial status
-    send_update(&nm).await;
-
-    // Monitor device changes (covers both WiFi and Ethernet state changes)
-    // This is a blocking call that listens for D-Bus signals
-    nm.monitor_device_changes(|| {
-        debug!("Network device state changed");
-        // We need to fetch new status asynchronously
-        // Since this callback is sync, we'll use a channel or spawn
-    })
-    .await?;
-
-    // Note: monitor_device_changes blocks forever, so we won't reach here
-    // If we need periodic updates as well, we can use polling fallback
-
-    Ok(())
-}
-
-async fn send_update(nm: &nmrs::NetworkManager) {
-    let status = fetch_network_status_with_nm(nm).await;
+/// Send network update to event bus (async version for use within dbus_worker).
+async fn send_update() {
+    let status = fetch_network_status().await;
     debug!(
         "Network update: connected={}, type={:?}, signal={:?}",
         status.connected, status.connection_type, status.signal_strength
@@ -194,21 +165,44 @@ async fn send_update(nm: &nmrs::NetworkManager) {
     events::send_network(status);
 }
 
-async fn fetch_network_status_with_nm(nm: &nmrs::NetworkManager) -> NetworkStatus {
-    // Check current connection
-    let ssid = nm.current_ssid().await;
-    let connected = ssid.is_some();
+async fn dbus_worker() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    use futures_util::stream::StreamExt;
+    use zbus::Connection;
 
-    if !connected {
-        return check_ethernet_status(nm).await;
+    let connection = Connection::system().await?;
+
+    // Listen for NetworkManager StateChanged and PropertiesChanged signals
+    let rule = zbus::MatchRule::builder()
+        .msg_type(zbus::message::Type::Signal)
+        .interface("org.freedesktop.DBus.Properties")?
+        .member("PropertiesChanged")?
+        .path_namespace("/org/freedesktop/NetworkManager")?
+        .build();
+
+    let mut stream = zbus::MessageStream::for_match_rule(rule, &connection, Some(100)).await?;
+
+    info!("Listening for NetworkManager D-Bus signals...");
+
+    // Send initial update
+    send_update().await;
+
+    while let Some(msg) = stream.next().await {
+        if let Ok(_msg) = msg {
+            // Any NetworkManager property change triggers an update
+            send_update().await;
+        }
     }
 
-    let signal_strength = get_current_signal_strength(nm, ssid.as_deref()).await;
+    info!("D-Bus signal stream ended");
+    Ok(())
+}
 
-    NetworkStatus {
-        connected: true,
-        signal_strength,
-        ssid,
-        connection_type: ConnectionType::Wifi,
+async fn polling_worker() {
+    use tokio::time::{Duration, sleep};
+
+    info!("Using polling fallback (every 10 seconds)");
+    loop {
+        sleep(Duration::from_secs(10)).await;
+        send_update().await;
     }
 }

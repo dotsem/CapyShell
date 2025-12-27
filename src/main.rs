@@ -11,7 +11,7 @@ use hyprland::shared::HyprData;
 use log::{debug, error, info, warn};
 use panels::taskbar::events::TaskbarEvent;
 use panels::taskbar::taskbar::Taskbar;
-use panels::taskbar::{battery, clock, events, network, volume};
+use panels::taskbar::{battery, bluetooth, clock, events, network, volume};
 use slint::ComponentHandle;
 use spell_framework::{
     enchant_spells,
@@ -121,6 +121,9 @@ fn main() -> Result<(), Box<dyn Error>> {
                             TaskbarEvent::Network(status) => {
                                 network::update_ui(&ui, &status);
                             }
+                            TaskbarEvent::Bluetooth(status) => {
+                                bluetooth::update_ui(&ui, &status);
+                            }
                         }
                     }
                 }
@@ -145,6 +148,13 @@ fn main() -> Result<(), Box<dyn Error>> {
         // Initial network state
         let initial_network = services::network::get_status();
         network::update_ui(&ui, &initial_network);
+
+        // Bluetooth setup (only if bluetooth adapter is present)
+        ui.set_has_bluetooth(service_status.has_bluetooth);
+        if service_status.has_bluetooth {
+            let initial_bluetooth = services::bluetooth::get_status();
+            bluetooth::update_ui(&ui, &initial_bluetooth);
+        }
 
         // Keep timer alive
         std::mem::forget(event_timer);

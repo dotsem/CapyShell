@@ -7,7 +7,8 @@ import {
 import { Palette } from "std-widgets.slint";
 import { TaskbarNetwork } from "network.slint";
 import { NetworkState } from "network.slint";
-
+import { TaskbarBluetooth } from "bluetooth.slint";
+import { BluetoothState } from "bluetooth.slint";
 
 export component Taskbar inherits Window {
     init => {
@@ -30,6 +31,9 @@ export component Taskbar inherits Window {
 
     in-out property <bool> has-battery: false;
     in-out property <NetworkState> network-state: NetworkState.NotConnected;
+
+    in-out property <BluetoothState> bluetooth-state: BluetoothState.Off;
+    in-out property <bool> has-bluetooth: false;
     callback update-clock();
     Timer {
         interval: 1s;
@@ -79,6 +83,10 @@ export component Taskbar inherits Window {
 
             TaskbarNetwork {
                 state: root.network-state;
+            }
+
+            if root.has-bluetooth: TaskbarBluetooth {
+                state: root.bluetooth-state;
             }
         }
     }

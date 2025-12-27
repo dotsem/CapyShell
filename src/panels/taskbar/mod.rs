@@ -1,4 +1,5 @@
 pub mod battery;
+pub mod bluetooth;
 pub mod clock;
 pub mod events;
 pub mod network;
