@@ -95,8 +95,8 @@ fn main() -> Result<(), Box<dyn Error>> {
             }
         });
 
-        // Event polling timer
-        let event_rx = events::receiver();
+        // Event polling timer - each taskbar subscribes to the broadcast channel
+        let mut event_rx = events::subscribe();
         let ui_weak_events = ui.as_weak();
 
         let event_timer = slint::Timer::default();
@@ -104,7 +104,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             slint::TimerMode::Repeated,
             std::time::Duration::from_millis(EVENT_POLL_INTERVAL_MS),
             move || {
-                let events = events::drain_latest(&event_rx);
+                let events = events::drain_latest(&mut event_rx);
                 if events.is_empty() {
                     return;
                 }

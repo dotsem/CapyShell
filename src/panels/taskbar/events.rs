@@ -1,22 +1,21 @@
-//! Taskbar event definitions and event bus.
+//! Taskbar event definitions and broadcast event bus.
 //!
-//! All background services send events here, and a single Timer
-//! polls and applies them to the UI.
+//! Uses tokio::sync::broadcast so ALL taskbars receive every event.
+//! Per-monitor events can be filtered by the receiver using the monitor tag.
 
 use crate::event_bus::CHANNEL_CAPACITY;
 use crate::panels::taskbar::battery::BatteryStatus;
-use crossbeam_channel::{Receiver, Sender, bounded};
 use std::sync::OnceLock;
+use tokio::sync::broadcast::{self, Receiver, Sender};
 
 /// All possible taskbar events from background services.
 #[derive(Clone, Debug)]
 pub enum TaskbarEvent {
+    // Global events (same for all monitors)
     Battery(BatteryStatus),
-    // Future events:
-    // Music(MusicData),
-    // Systray(SystrayData),
-    // Network(NetworkData),
-    // Volume(VolumeData),
+    // Future per-monitor events will include a monitor tag:
+    // Workspace { monitor: String, data: WorkspaceData },
+    // ActiveWindow { monitor: String, data: WindowData },
 }
 
 impl TaskbarEvent {
@@ -25,46 +24,52 @@ impl TaskbarEvent {
     pub fn variant_index(&self) -> usize {
         match self {
             TaskbarEvent::Battery(_) => 0,
-            // TaskbarEvent::Music(_) => 1,
-            // TaskbarEvent::Systray(_) => 2,
-            // etc.
         }
     }
 }
 
-// Static channel for taskbar events
-static TASKBAR_CHANNEL: OnceLock<(Sender<TaskbarEvent>, Receiver<TaskbarEvent>)> = OnceLock::new();
+// Static broadcast sender - subscribers get their own receiver via subscribe()
+static TASKBAR_SENDER: OnceLock<Sender<TaskbarEvent>> = OnceLock::new();
 
-fn get_channel() -> &'static (Sender<TaskbarEvent>, Receiver<TaskbarEvent>) {
-    TASKBAR_CHANNEL.get_or_init(|| bounded(CHANNEL_CAPACITY))
+fn get_sender() -> &'static Sender<TaskbarEvent> {
+    TASKBAR_SENDER.get_or_init(|| {
+        let (tx, _rx) = broadcast::channel(CHANNEL_CAPACITY);
+        tx
+    })
 }
 
-/// Send an event to the taskbar. Non-blocking.
-/// If buffer is full, drops the event (we always want latest data anyway).
+/// Send an event to all taskbars. Non-blocking.
+/// If no receivers, the event is dropped (expected during startup).
 #[inline]
 pub fn send(event: TaskbarEvent) {
-    let tx = &get_channel().0;
-    let _ = tx.try_send(event);
+    let _ = get_sender().send(event);
 }
 
-/// Send battery data to the taskbar.
+/// Send battery data to all taskbars.
 #[inline]
 pub fn send_battery(data: BatteryStatus) {
     send(TaskbarEvent::Battery(data));
 }
 
-/// Get the receiver for polling from the UI thread.
-pub fn receiver() -> Receiver<TaskbarEvent> {
-    get_channel().1.clone()
+/// Subscribe to the event bus. Each taskbar gets its own receiver.
+/// Returns a new receiver that will receive all future events.
+pub fn subscribe() -> Receiver<TaskbarEvent> {
+    get_sender().subscribe()
 }
 
-/// Drain all pending events, keeping only the latest per variant.
-/// This is the most efficient way to handle bursts of events.
+/// Drain all pending events from a receiver, keeping only the latest per variant.
+/// Handles RecvError::Lagged by continuing to drain.
 #[inline]
-pub fn drain_latest(rx: &Receiver<TaskbarEvent>) -> Vec<TaskbarEvent> {
-    let mut events = Vec::with_capacity(CHANNEL_CAPACITY);
-    while let Ok(event) = rx.try_recv() {
-        events.push(event);
+pub fn drain_latest(rx: &mut Receiver<TaskbarEvent>) -> Vec<TaskbarEvent> {
+    let mut events = Vec::with_capacity(8);
+
+    loop {
+        match rx.try_recv() {
+            Ok(event) => events.push(event),
+            Err(broadcast::error::TryRecvError::Empty) => break,
+            Err(broadcast::error::TryRecvError::Lagged(_)) => continue, // Skip old, keep draining
+            Err(broadcast::error::TryRecvError::Closed) => break,
+        }
     }
 
     if events.len() <= 1 {
