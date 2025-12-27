@@ -1,4 +1,7 @@
 
+import {
+    MaterialPalette,
+} from "../../../material-1.0/ui/styling/material_palette.slint";
 export struct ClockState {
     time: string,
     date: string,
@@ -18,7 +21,7 @@ export component Clock {
 
         Text {
             text: root.state.date;
-            color: #aaa;
+            color: MaterialPalette.on_surface_variant;
             font-size: 10px;
             horizontal-alignment: center;
             vertical-alignment: center;
@@ -26,7 +29,7 @@ export component Clock {
 
         Text {
             text: root.state.time;
-            color: #fff;
+            color: MaterialPalette.on_surface;
             font-size: 14px;
             horizontal-alignment: center;
             vertical-alignment: center;

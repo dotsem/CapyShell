@@ -1,7 +1,17 @@
 import { Clock, ClockState } from "clock.slint";
 import { Battery, BatteryData, BatteryState } from "battery.slint";
+import { Volume } from "volume.slint";
+import {
+    MaterialPalette,
+} from "../../../material-1.0/ui/styling/material_palette.slint";
+import { Palette } from "std-widgets.slint";
+
 
 export component Taskbar inherits Window {
+    init => {
+        Palette.color-scheme = ColorScheme.dark; // move this to rust when user config is implemented
+    }
+
     // State properties
     in-out property <ClockState> clock-state: {
         time: "00:00",
@@ -13,6 +23,8 @@ export component Taskbar inherits Window {
         state: BatteryState.Unknown,
         time_remaining: "",
     };
+
+    in-out property <int> volume: 0;
 
     // Whether a battery is present on the system
     in-out property <bool> has-battery: false;
@@ -31,7 +43,7 @@ export component Taskbar inherits Window {
     }
 
     // Main window styling
-    background: #222;
+    background: MaterialPalette.surface;
     height: 48px;
 
     // Main layout: 3-section row (left | center | right)
@@ -62,6 +74,10 @@ export component Taskbar inherits Window {
 
             Clock {
                 state: root.clock-state;
+            }
+
+            Volume {
+                volume: root.volume;
             }
         }
     }
