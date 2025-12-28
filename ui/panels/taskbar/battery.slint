@@ -31,6 +31,91 @@ export struct BatteryData {
 export component TaskbarBattery {
     in-out property <BatteryData> data;
 
+    private property <color> battery-color: get-color(root.data.state);
+
+    HorizontalLayout {
+        spacing: 6px;
+        alignment: center;
+
+        // Percentage and time remaining
+        VerticalLayout {
+            alignment: center;
+            spacing: 2px;
+
+            if root.data.time_remaining != "": Text {
+                text: root.data.time_remaining;
+                font-size: 9px;
+                color: #a0a0a0;
+                horizontal-alignment: right;
+            }
+            HorizontalLayout {
+                spacing: 4px;
+                alignment: end;
+                Image {
+                    source: Icons.bolt;
+                    width: is-charging(root.data.state) ? 20px : 0px;
+                    height: 20px;
+                    colorize: root.battery-color;
+                    animate width { duration: 300ms; }
+                }
+
+                Text {
+                    text: root.data.percentage + "%";
+                    font-size: 12px;
+                    color: root.battery-color;
+                    font-weight: 600;
+                }
+            }
+        }
+
+        // Circular indicator with icon
+       VerticalLayout {
+            alignment: center;
+            Rectangle {
+                width: 40px;
+                height: 40px;
+            
+            // Background circle
+            Rectangle {
+                    width: 100%;
+                    height: 100%;
+                    border-radius: 20px;
+                    background: MaterialPalette.surface;
+                }
+
+                // Battery Level Arc (Circular Progress)
+            Path {
+                    width: 100%;
+                    height: 100%;
+                    viewbox-width: 100;
+                    viewbox-height: 100;
+                    commands: {
+                        if root.data.percentage == 0 {
+                            ""
+                        } else if root.data.percentage == 100 {
+                            "M 50 10 A 40 40 0 1 1 49.99 10"
+                        } else {
+                            "M 50 10 A 40 40 0 " + (root.data.percentage > 50 ? "1" : "0") + " 1 " + (50 + 40 * sin(root.data.percentage * 3.6deg)) + " " + (50 - 40 * cos(root.data.percentage * 3.6deg))
+                        }
+                    };
+                    stroke: root.battery-color;
+                    stroke-width: 2px;
+                    fill: transparent;
+                }
+            
+            // Battery Icon
+            Image {
+                    source: get-icon(root.data.state);
+                    width: 20px;
+                    height: 20px;
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                    colorize: root.battery-color;
+                }
+            }
+        }
+    }
+
     pure function is-charging(s: BatteryState) -> bool {
         return s == BatteryState.Charging20 || s == BatteryState.Charging30 || s == BatteryState.Charging80 || s == BatteryState.Charging90 || s == BatteryState.ChargingFull;
     }
@@ -107,90 +192,5 @@ export component TaskbarBattery {
         }
         // Normal states (discharging)
         return MaterialPalette.on_surface;
-    }
-
-    private property <color> battery-color: get-color(root.data.state);
-
-    HorizontalLayout {
-        spacing: 6px;
-        alignment: center;
-
-        // Percentage and time remaining
-        VerticalLayout {
-            alignment: center;
-            spacing: 2px;
-            HorizontalLayout {
-                spacing: 4px;
-                alignment: end;
-                Image {
-                    source: Icons.bolt;
-                    width: is-charging(root.data.state) ? 20px : 0px;
-                    height: 20px;
-                    colorize: root.battery-color;
-                    animate width { duration: 300ms; }
-                }
-
-                Text {
-                    text: root.data.percentage + "%";
-                    font-size: 12px;
-                    color: root.battery-color;
-                    font-weight: 600;
-                }
-            }
-
-            if root.data.time_remaining != "": Text {
-                text: root.data.time_remaining;
-                font-size: 9px;
-                color: #a0a0a0;
-                horizontal-alignment: right;
-            }
-        }
-
-        // Circular indicator with icon
-       VerticalLayout {
-            alignment: center;
-            Rectangle {
-                width: 40px;
-                height: 40px;
-            
-            // Background circle
-            Rectangle {
-                    width: 100%;
-                    height: 100%;
-                    border-radius: 20px;
-                    background: MaterialPalette.surface;
-                }
-
-                // Battery Level Arc (Circular Progress)
-            Path {
-                    width: 100%;
-                    height: 100%;
-                    viewbox-width: 100;
-                    viewbox-height: 100;
-                    commands: {
-                        if root.data.percentage == 0 {
-                            ""
-                        } else if root.data.percentage == 100 {
-                            "M 50 10 A 40 40 0 1 1 49.99 10"
-                        } else {
-                            "M 50 10 A 40 40 0 " + (root.data.percentage > 50 ? "1" : "0") + " 1 " + (50 + 40 * sin(root.data.percentage * 3.6deg)) + " " + (50 - 40 * cos(root.data.percentage * 3.6deg))
-                        }
-                    };
-                    stroke: root.battery-color;
-                    stroke-width: 2px;
-                    fill: transparent;
-                }
-            
-            // Battery Icon
-            Image {
-                    source: get-icon(root.data.state);
-                    width: 20px;
-                    height: 20px;
-                    x: (parent.width - self.width) / 2;
-                    y: (parent.height - self.height) / 2;
-                    colorize: root.battery-color;
-                }
-            }
-        }
     }
 }
