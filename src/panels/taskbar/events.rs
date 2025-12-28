@@ -8,6 +8,7 @@ use crate::services::battery::BatteryStatus;
 use crate::services::bluetooth::BluetoothStatus;
 use crate::services::network::NetworkStatus;
 use crate::services::volume::VolumeStatus;
+use crate::services::workspaces::WorkspacesStatus;
 use std::sync::OnceLock;
 use tokio::sync::broadcast::{self, Receiver, Sender};
 
@@ -19,9 +20,8 @@ pub enum TaskbarEvent {
     Volume(VolumeStatus),
     Network(NetworkStatus),
     Bluetooth(BluetoothStatus),
-    // Future per-monitor events will include a monitor tag:
-    // Workspace { monitor: String, data: WorkspaceData },
-    // ActiveWindow { monitor: String, data: WindowData },
+    // Per-monitor events (filtered by receiver)
+    Workspaces(WorkspacesStatus),
 }
 
 impl TaskbarEvent {
@@ -33,6 +33,7 @@ impl TaskbarEvent {
             TaskbarEvent::Volume(_) => 1,
             TaskbarEvent::Network(_) => 2,
             TaskbarEvent::Bluetooth(_) => 3,
+            TaskbarEvent::Workspaces(_) => 4,
         }
     }
 }
@@ -78,6 +79,12 @@ pub fn send_bluetooth(data: BluetoothStatus) {
     send(TaskbarEvent::Bluetooth(data));
 }
 
+/// Send workspaces data to all taskbars (filtered by monitor name).
+#[inline]
+pub fn send_workspaces(data: WorkspacesStatus) {
+    send(TaskbarEvent::Workspaces(data));
+}
+
 /// Subscribe to the event bus. Each taskbar gets its own receiver.
 /// Returns a new receiver that will receive all future events.
 pub fn subscribe() -> Receiver<TaskbarEvent> {
@@ -85,6 +92,7 @@ pub fn subscribe() -> Receiver<TaskbarEvent> {
 }
 
 /// Drain all pending events from a receiver, keeping only the latest per variant.
+/// Workspaces events are NOT deduplicated since they are per-monitor.
 /// Handles RecvError::Lagged by continuing to drain.
 #[inline]
 pub fn drain_latest(rx: &mut Receiver<TaskbarEvent>) -> Vec<TaskbarEvent> {
@@ -104,12 +112,17 @@ pub fn drain_latest(rx: &mut Receiver<TaskbarEvent>) -> Vec<TaskbarEvent> {
     }
 
     // Deduplicate: keep only the latest of each variant
+    // EXCEPT Workspaces events (variant 4) which are per-monitor
     let mut seen = [false; 8]; // Support up to 8 event types
     let mut result = Vec::with_capacity(events.len());
 
     for event in events.into_iter().rev() {
         let idx = event.variant_index();
-        if !seen[idx] {
+
+        // Keep ALL Workspaces events (they're per-monitor, each one matters)
+        if idx == 4 {
+            result.push(event);
+        } else if !seen[idx] {
             seen[idx] = true;
             result.push(event);
         }

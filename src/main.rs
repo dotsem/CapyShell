@@ -11,7 +11,7 @@ use hyprland::shared::HyprData;
 use log::{debug, error, info, warn};
 use panels::taskbar::events::TaskbarEvent;
 use panels::taskbar::taskbar::Taskbar;
-use panels::taskbar::{battery, bluetooth, clock, events, network, volume};
+use panels::taskbar::{battery, bluetooth, clock, events, network, volume, workspaces};
 use slint::ComponentHandle;
 use spell_framework::{
     enchant_spells,
@@ -83,6 +83,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut uis: Vec<Taskbar> = Vec::new();
     for (i, _waywin) in windows.iter().enumerate() {
         let ui = Taskbar::new()?;
+        let monitor_name = monitors[i].name.clone();
+        info!("Taskbar {} assigned to monitor '{}'", i, monitor_name);
 
         // Clock callback
         let ui_weak_clock = ui.as_weak();
@@ -92,9 +94,15 @@ fn main() -> Result<(), Box<dyn Error>> {
             }
         });
 
+        // Workspace click callback
+        ui.on_workspace_clicked(move |workspace_id| {
+            workspaces::switch_to_workspace(workspace_id);
+        });
+
         // Event polling timer - each taskbar subscribes to the broadcast channel
         let mut event_rx = events::subscribe();
         let ui_weak_events = ui.as_weak();
+        let monitor_name_for_events = monitor_name.clone();
 
         let event_timer = slint::Timer::default();
         event_timer.start(
@@ -119,6 +127,9 @@ fn main() -> Result<(), Box<dyn Error>> {
                             }
                             TaskbarEvent::Bluetooth(status) => {
                                 bluetooth::update_ui(&ui, &status);
+                            }
+                            TaskbarEvent::Workspaces(status) => {
+                                workspaces::update_ui(&ui, &status, &monitor_name_for_events);
                             }
                         }
                     }
@@ -151,6 +162,10 @@ fn main() -> Result<(), Box<dyn Error>> {
             let initial_bluetooth = services::bluetooth::get_status();
             bluetooth::update_ui(&ui, &initial_bluetooth);
         }
+
+        // Initial workspace state
+        let initial_workspaces = services::workspaces::get_status(&monitor_name);
+        workspaces::update_ui(&ui, &initial_workspaces, &monitor_name);
 
         // Keep timer alive
         std::mem::forget(event_timer);

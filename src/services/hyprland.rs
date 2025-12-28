@@ -1,47 +1,14 @@
-//! Hyprland event listener for monitor hotplug and system events.
+//! Hyprland utility functions for CapyShell.
 //!
-//! When monitors are added or removed, triggers application restart
-//! to recreate taskbars for the new monitor configuration.
+//! Monitor hotplug is now handled in the workspaces service to use a single thread.
 
-use hyprland::event_listener::EventListener;
 use log::{error, info};
 use std::os::unix::process::CommandExt;
 use std::process::Command;
-use std::thread;
-
-/// Start a listener that triggers application restart on monitor changes.
-/// This allows the single-process architecture to handle hotplug by restarting.
-pub fn start_listener() {
-    thread::spawn(move || {
-        let mut listener = EventListener::new();
-
-        // On monitor added, trigger restart
-        listener.add_monitor_added_handler(move |event_data| {
-            info!(
-                "Monitor added: {}. Restarting to reconfigure...",
-                event_data.name
-            );
-            // Small delay to let Hyprland settle
-            thread::sleep(std::time::Duration::from_millis(200));
-            restart_process();
-        });
-
-        // On monitor removed, trigger restart
-        listener.add_monitor_removed_handler(move |name| {
-            info!("Monitor removed: {}. Restarting to reconfigure...", name);
-            thread::sleep(std::time::Duration::from_millis(200));
-            restart_process();
-        });
-
-        info!("Hyprland hotplug listener active (will restart on changes)");
-        if let Err(e) = listener.start_listener() {
-            error!("Hyprland event listener failed: {}", e);
-        }
-    });
-}
 
 /// Restart the current process by replacing it with a new instance.
-fn restart_process() {
+/// Used for monitor hotplug to recreate taskbars.
+pub fn restart_process() {
     let exe = match std::env::current_exe() {
         Ok(e) => e,
         Err(e) => {

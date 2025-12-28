@@ -10,6 +10,7 @@ dependencies = [
  "bluer",
  "chrono",
  "crossbeam-channel",
+ "env_logger",
  "futures-util",
  "hyprland",
  "libpulse-binding",
@@ -20,6 +21,7 @@ dependencies = [
  "spell-framework",
  "sysinfo",
  "tokio",
+ "walkdir",
  "zbus 4.4.0",
 ]
 

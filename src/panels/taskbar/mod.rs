@@ -5,3 +5,4 @@ pub mod events;
 pub mod network;
 pub mod taskbar;
 pub mod volume;
+pub mod workspaces;

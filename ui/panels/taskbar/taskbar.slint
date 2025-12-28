@@ -15,6 +15,13 @@ import {
 import {
     MaterialStyleMetrics,
 } from "../../../material-1.0/ui/styling/material_style_metrics.slint";
+import {
+    TaskbarWorkspaces,
+    WorkspaceData,
+    WorkspaceState,
+} from "workspaces.slint";
+
+export { WorkspaceData, WorkspaceState }
 
 export component Taskbar inherits Window {
     init => {
@@ -40,6 +47,11 @@ export component Taskbar inherits Window {
 
     in-out property <BluetoothState> bluetooth-state: BluetoothState.Off;
     in-out property <bool> has-bluetooth: false;
+
+    // Workspaces
+    in-out property <[WorkspaceData]> workspaces: [];
+    callback workspace-clicked(int);  // Called when workspace is clicked
+
     callback update-clock();
     Timer {
         interval: 1s;
@@ -60,10 +72,15 @@ export component Taskbar inherits Window {
         spacing: 8px;
 
         // === LEFT SECTION ===
-        // (Future: App menu, workspaces, etc.)
-        Rectangle {
+        VerticalLayout {
+            alignment: center;
             horizontal-stretch: 1;
-            // Placeholder for left-aligned items
+            TaskbarWorkspaces {
+                workspaces: root.workspaces;
+                workspace-clicked(id) => {
+                    root.workspace-clicked(id);
+                }
+            }
         }
 
         // === CENTER SECTION ===

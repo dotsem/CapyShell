@@ -1,0 +1,106 @@
+import {
+    MaterialPalette,
+} from "../../../material-1.0/ui/styling/material_palette.slint";
+import {
+    MaterialStyleMetrics,
+} from "../../../material-1.0/ui/styling/material_style_metrics.slint";
+
+// Workspace state enum
+export enum WorkspaceState {
+    Empty,
+    Occupied,
+    Visible,   // Active on unfocused monitor (darker)
+    Active,    // Active on focused monitor (bright)
+    Attention,
+}
+
+// Data for a single workspace
+export struct WorkspaceData {
+    id: int,           // Relative ID (1-10) for display
+    absolute_id: int,  // Absolute workspace ID for switching
+    state: WorkspaceState,
+    icon: image,
+}
+
+// Single workspace indicator (clickable)
+component WorkspaceIndicator {
+    in property <WorkspaceData> data;
+    callback clicked(int);
+
+    width: 32px;
+    height: 32px;
+
+    touch := TouchArea {
+        clicked => {
+            root.clicked(data.absolute-id);
+        }
+    }
+
+    // Background circle
+    Rectangle {
+        width: parent.width;
+        height: parent.height;
+        border-radius: 16px;
+        background: {
+            if data.state == WorkspaceState.Active {
+                MaterialPalette.primary
+            } else if data.state == WorkspaceState.Visible {
+                MaterialPalette.primary.darker(0.4)  // Dimmed for unfocused monitor
+            } else if data.state == WorkspaceState.Attention {
+                MaterialPalette.error
+            } else if data.state == WorkspaceState.Occupied {
+                MaterialPalette.surface-container
+            } else if touch.has-hover {
+                MaterialPalette.surface-container-high
+            } else {
+                transparent
+            }
+        };
+
+        // Icon or number
+        if data.icon.width > 0: Image {
+            width: 20px;
+            height: 20px;
+            source: data.icon;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+
+        // Fallback: show workspace number if no icon
+        if data.icon.width == 0: Text {
+            text: data.id;
+            font-size: 12px;
+            color: {
+                if data.state == WorkspaceState.Active {
+                    MaterialPalette.on-primary
+                } else if data.state == WorkspaceState.Attention {
+                    MaterialPalette.on-error
+                } else if data.state == WorkspaceState.Occupied {
+                    MaterialPalette.on-surface
+                } else {
+                    MaterialPalette.outline
+                }
+            };
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
+}
+
+// Main workspaces component
+export component TaskbarWorkspaces {
+    in property <[WorkspaceData]> workspaces;
+    // Callback when a workspace is clicked (receives absolute workspace ID)
+    callback workspace-clicked(int);
+
+    HorizontalLayout {
+        spacing: 0px;
+
+        for workspace in workspaces: WorkspaceIndicator {
+            data: workspace;
+            clicked(id) => {
+                root.workspace-clicked(id);
+            }
+        }
+    }
+}
