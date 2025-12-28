@@ -20,6 +20,8 @@ export struct WorkspaceData {
     absolute_id: int,  // Absolute workspace ID for switching
     state: WorkspaceState,
     icon: image,
+    prev_occupied: bool,  // Is the previous workspace non-empty?
+    next_occupied: bool,  // Is the next workspace non-empty?
 }
 
 // Single workspace indicator (clickable)
@@ -36,11 +38,22 @@ component WorkspaceIndicator {
         }
     }
 
+    pure function get-vertical-side-border-radius(occupied: bool) -> length {
+        if (occupied) {
+            return 0px;
+        } else {
+            return 16px;
+        }
+    }
+
     // Background circle
     Rectangle {
         width: parent.width;
         height: parent.height;
-        border-radius: 16px;
+        border-top-left-radius: get-vertical-side-border-radius(data.prev_occupied);
+        border-bottom-left-radius: get-vertical-side-border-radius(data.prev_occupied);
+        border-top-right-radius: get-vertical-side-border-radius(data.next_occupied);
+        border-bottom-right-radius: get-vertical-side-border-radius(data.next_occupied);
         background: {
             if data.state == WorkspaceState.Active {
                 MaterialPalette.primary
@@ -58,12 +71,18 @@ component WorkspaceIndicator {
         };
 
         // Icon or number
-        if data.icon.width > 0: Image {
-            width: 20px;
-            height: 20px;
-            source: data.icon;
-            horizontal-alignment: center;
-            vertical-alignment: center;
+        if data.icon.width > 0: Rectangle {
+            width: 24px;
+            height: 24px;
+            border-radius: 12px;
+            clip: true;
+            Image {
+                width: parent.width;
+                height: parent.height;
+                source: data.icon;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
         }
 
         // Fallback: show workspace number if no icon

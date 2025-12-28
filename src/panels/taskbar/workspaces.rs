@@ -18,10 +18,16 @@ pub fn update_ui(ui: &Taskbar, status: &WorkspacesStatus, monitor_name: &str) {
         return;
     }
 
-    let workspace_data: Vec<WorkspaceData> = status
-        .workspaces
+    let workspaces = &status.workspaces;
+    let workspace_data: Vec<WorkspaceData> = workspaces
         .iter()
-        .map(|ws| workspace_to_slint(ws))
+        .enumerate()
+        .map(|(i, ws)| {
+            let prev_occupied = i > 0 && !matches!(workspaces[i - 1].state, WorkspaceState::Empty);
+            let next_occupied = i + 1 < workspaces.len()
+                && !matches!(workspaces[i + 1].state, WorkspaceState::Empty);
+            workspace_to_slint(ws, prev_occupied, next_occupied)
+        })
         .collect();
 
     let model: Rc<VecModel<WorkspaceData>> = Rc::new(VecModel::from(workspace_data));
@@ -29,7 +35,11 @@ pub fn update_ui(ui: &Taskbar, status: &WorkspacesStatus, monitor_name: &str) {
 }
 
 /// Convert service workspace info to Slint WorkspaceData.
-fn workspace_to_slint(ws: &WorkspaceInfo) -> WorkspaceData {
+fn workspace_to_slint(
+    ws: &WorkspaceInfo,
+    prev_occupied: bool,
+    next_occupied: bool,
+) -> WorkspaceData {
     let state = match ws.state {
         WorkspaceState::Empty => SlintWorkspaceState::Empty,
         WorkspaceState::Occupied => SlintWorkspaceState::Occupied,
@@ -50,6 +60,8 @@ fn workspace_to_slint(ws: &WorkspaceInfo) -> WorkspaceData {
         absolute_id: ws.absolute_id,
         state,
         icon,
+        prev_occupied,
+        next_occupied,
     }
 }
 
