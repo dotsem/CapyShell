@@ -11,7 +11,7 @@ use hyprland::shared::HyprData;
 use log::{debug, error, info, warn};
 use panels::taskbar::events::TaskbarEvent;
 use panels::taskbar::taskbar::Taskbar;
-use panels::taskbar::{battery, bluetooth, clock, events, network, volume, workspaces};
+use panels::taskbar::{battery, bluetooth, clock, events, mpris, network, volume, workspaces};
 use slint::ComponentHandle;
 use spell_framework::{
     enchant_spells,
@@ -131,6 +131,9 @@ fn main() -> Result<(), Box<dyn Error>> {
                             TaskbarEvent::Workspaces(status) => {
                                 workspaces::update_ui(&ui, &status, &monitor_name_for_events);
                             }
+                            TaskbarEvent::Mpris(data) => {
+                                mpris::update_ui(&ui, &data);
+                            }
                         }
                     }
                 }
@@ -166,6 +169,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         // Initial workspace state
         let initial_workspaces = services::workspaces::get_status(&monitor_name);
         workspaces::update_ui(&ui, &initial_workspaces, &monitor_name);
+
+        mpris::attach_callbacks(&ui);
 
         // Keep timer alive
         std::mem::forget(event_timer);

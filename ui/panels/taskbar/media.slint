@@ -1,0 +1,364 @@
+import {
+    MaterialPalette,
+} from "../../../material-1.0/ui/styling/material_palette.slint";
+import {
+    MaterialStyleMetrics,
+} from "../../../material-1.0/ui/styling/material_style_metrics.slint";
+import {
+    StateLayer,
+} from "../../../material-1.0/ui/components/state_layer.slint";
+
+export struct MediaData {
+    title: string,
+    artist: string,
+    album_art: image,
+    blurred_art: image,
+    length_secs: float,
+    position_secs: float,
+    is_playing: bool,
+    has_media: bool,
+    text_color: color,
+}
+
+component MediaButton inherits Rectangle {
+    in property <string> type; // "play", "pause", "next", "prev"
+    in property <color> icon-color;
+    callback clicked;
+    width: 24px;
+    height: 24px;
+    border-radius: 12px;
+    StateLayer {
+        width: 100%;
+        height: 100%;
+    }
+
+    TouchArea {
+        clicked => {
+            root.clicked();
+        }
+    }
+    
+    // Play Icon
+    Path {
+        visible: root.type == "play";
+        width: 10px;
+        height: 12px;
+        x: (parent.width - self.width) / 2 + 1px; // Visual center
+        y: (parent.height - self.height) / 2;
+        fill: root.icon-color;
+        commands: "M 0 0 L 0 12 L 10 6 Z";
+    }
+    
+    // Pause Icon
+    HorizontalLayout {
+        visible: root.type == "pause";
+        spacing: 3px;
+        alignment: center;
+        Rectangle {
+            width: 3px;
+            height: 10px;
+            background: root.icon-color;
+        }
+
+        Rectangle {
+            width: 3px;
+            height: 10px;
+            background: root.icon-color;
+        }
+    }
+    
+    // Next Icon
+    Path {
+        visible: root.type == "next";
+        width: 10px;
+        height: 10px;
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        fill: root.icon-color;
+        commands: "M 0 0 L 0 10 L 7 5 Z M 7 0 L 7 10 L 10 10 L 10 0 Z";
+    }
+
+    // Prev Icon
+    Path {
+        visible: root.type == "prev";
+        width: 10px;
+        height: 10px;
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        fill: root.icon-color;
+        commands: "M 10 0 L 10 10 L 3 5 Z M 3 0 L 3 10 L 0 10 L 0 0 Z";
+    }
+}
+
+export component MediaWidget inherits Rectangle {
+    in property <MediaData> data;
+    callback play-pause();
+    callback next();
+    callback prev();
+    callback seek(float); // percent 0..1
+
+    width: 250px; // Default
+    height: 48px;
+    clip: true;
+    border-radius: 8px; // Slight rounding
+
+    property <duration> anim-duration: 200ms;
+    
+    // Bind properties to TouchAreas defined below
+    property <bool> is-hovering-art: art_area.has-hover;
+    property <bool> is-hovering-widget: widget_area.has-hover;
+
+    // Background: Blurred Art or dark fallback
+    Rectangle {
+        width: 100%;
+        height: 100%;
+        background: #1a1a1a; // Fallback dark background
+        
+        Image {
+            width: 100%;
+            height: 100%;
+            source: data.blurred_art;
+            image-fit: cover;
+            visible: data.blurred_art.width > 0;
+        }
+        
+        // Darken overlay for better contrast
+        Rectangle {
+            background: #000000;
+            opacity: 0.3;
+        }
+    }
+    
+    // TouchAreas for Hover
+    art_area := TouchArea {
+        x: 0;
+        width: 48px;
+        height: 48px;
+        mouse-cursor: pointer;
+    }
+
+    widget_area := TouchArea {
+        x: 48px;
+        width: parent.width - 48px;
+        height: 48px;
+        mouse-cursor: default;
+    }
+
+    // === Visualizer (Simple Animated Bars) ===
+    HorizontalLayout {
+        x: 0;
+        y: 0;
+        width: 100%;
+        height: 100%;
+        spacing: 2px;
+        padding: 4px;
+        opacity: (data.is-playing && !root.is-hovering-widget && !root.is-hovering-art) ? 0.3 : 0.0;
+        animate opacity { duration: 200ms; }
+        for i in 12: Rectangle {
+            horizontal-stretch: 1;
+            height: 100%;
+            VerticalLayout {
+                alignment: end;
+                Rectangle {
+                    width: 100%;
+                    // Use animation-tick directly in radians-like degrees
+                    // Each bar has different phase offset (i * 30deg)
+                    // Speed controlled by dividing animation-tick
+                    height: 8px + 20px * (0.5 + 0.5 * sin((animation-tick() / 100ms) * 1deg + (i * 30deg)));
+                    background: data.text-color;
+                    opacity: 0.6;
+                    border-radius: 2px;
+                    animate height { duration: 50ms; }
+                }
+            }
+        }
+    }
+
+    // === Layout ===
+    HorizontalLayout {
+        padding: 0;
+        spacing: 0;
+
+        // --- Album Art Section ---
+        Rectangle {
+            width: 48px;
+            height: 48px;
+            clip: true;
+            border-radius: 8px;
+            background: #333333; // Placeholder background when no art
+            
+            Image {
+                width: 100%;
+                height: 100%;
+                source: data.album_art;
+                image-fit: cover;
+            }
+            
+            // Music note icon as placeholder when no art
+            Text {
+                visible: data.album_art.width == 0;
+                text: "♪";
+                font-size: 24px;
+                color: #888888;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+                width: 100%;
+                height: 100%;
+            }
+        }
+        
+        // --- Content Section ---
+        Rectangle {
+            // width: parent.width - 48px; // Implicit by layout properties usually, but HorizontalLayout children need sizing
+            horizontal-stretch: 1;
+            height: 48px;
+            clip: true;
+            
+            // Normal / Stacked Mode
+            VerticalLayout {
+                padding: 4px;
+                padding-left: 8px;
+                padding-right: 8px;
+                alignment: center;
+
+                // Title Line
+                Rectangle {
+                    height: 20px;
+                    clip: true;
+                    
+                    // Normal: Title + Artist inline
+                    Text {
+                        text: data.title + " • " + data.artist;
+                        color: data.text-color;
+                        width: parent.width;
+                        font-size: 13px;
+                        font-weight: 600;
+                        horizontal-alignment: left;
+                        visible: !root.is-hovering-widget && !root.is-hovering-art;
+                        overflow: elide;
+                    }
+                    
+                    // Hover Art: Title Stacked
+                    Text {
+                        text: data.title;
+                        color: data.text-color;
+                        font-size: 13px;
+                        font-weight: 600;
+                        visible: root.is-hovering-art;
+                        overflow: elide;
+                    }
+
+                    // Hover Widget: Time Played
+                    Text {
+                        text: root.format-time(data.position_secs);
+                        color: data.text-color;
+                        font-size: 12px;
+                        x: 0;
+                        visible: root.is-hovering-widget;
+                    }
+                }
+                
+                // Bottom Line
+                Rectangle {
+                    height: 16px;
+                    
+                    // Normal: Progress Bar
+                    Rectangle {
+                        visible: !root.is-hovering-art;
+                        height: 4px;
+                        width: 100%;
+                        background: data.text-color.with-alpha(0.3);
+                        border-radius: 2px;
+                        y: 8px; // Center vertically in 16px
+                        
+                        // Fill
+                        Rectangle {
+                            x: 0;
+                            width: parent.width * (data.position_secs / max(1.0, data.length_secs));
+                            height: 100%;
+                            background: data.text-color;
+                            border-radius: 2px;
+                        }
+
+                        // Touch area for seek
+                        TouchArea {
+                            width: 100%;
+                            height: 16px;
+                            y: -6px; // Expand hit area
+                            clicked => {
+                                root.seek(self.mouse-x / self.width);
+                            }
+                        }
+                    }
+
+                    // Hover Art: Artist Name (Stacked)
+                    Text {
+                        text: data.artist;
+                        color: data.text-color;
+                        font-size: 12px;
+                        overflow: elide;
+                        visible: root.is-hovering-art;
+                    }
+
+                    // Hover Widget: Total Time (Right aligned)
+                    Text {
+                        text: root.format-time(data.length_secs);
+                        color: data.text-color;
+                        font-size: 12px;
+                        x: parent.width - self.width;
+                        visible: root.is-hovering-widget;
+                    }
+                }
+            }
+
+            // Hover Widget: Controls Overlay (Center)
+            HorizontalLayout {
+                visible: root.is-hovering-widget;
+                alignment: center;
+                spacing: 12px;
+                y: 12px; // Center vertically
+                
+                // Prev
+                MediaButton {
+                    type: "prev";
+                    icon-color: root.data.text-color;
+                    clicked => {
+                        root.prev();
+                    }
+                }
+                
+                // Play/Pause
+                MediaButton {
+                    type: root.data.is-playing ? "pause" : "play";
+                    icon-color: root.data.text-color;
+                    clicked => {
+                        root.play-pause();
+                    }
+                }
+
+                // Next
+                MediaButton {
+                    type: "next";
+                    icon-color: root.data.text-color;
+                    clicked => {
+                        root.next();
+                    }
+                }
+            }
+        }
+    }
+    
+    // Helper
+    pure function format-time(seconds: float) -> string {
+        if (seconds < 0) {
+            return "0:00";
+        }
+        let m = floor(seconds / 60);
+        let s = floor(seconds - m * 60);
+        return time-pad(m) + ":" + time-pad(s);
+    }
+
+    pure function time-pad(time-unit: int) -> string {
+        return time-unit < 10 ? "0" + time-unit : time-unit;
+    }
+}

@@ -9,6 +9,7 @@ import { TaskbarNetwork } from "network.slint";
 import { NetworkState } from "network.slint";
 import { TaskbarBluetooth } from "bluetooth.slint";
 import { BluetoothState } from "bluetooth.slint";
+import { MediaWidget, MediaData } from "media.slint";
 import {
     StateLayerArea,
 } from "../../../material-1.0/ui/components/state_layer.slint";
@@ -21,7 +22,7 @@ import {
     WorkspaceState,
 } from "workspaces.slint";
 
-export { WorkspaceData, WorkspaceState }
+export { WorkspaceData, WorkspaceState, MediaData }
 
 export component Taskbar inherits Window {
     init => {
@@ -51,6 +52,16 @@ export component Taskbar inherits Window {
     // Workspaces
     in-out property <[WorkspaceData]> workspaces: [];
     callback workspace-clicked(int);  // Called when workspace is clicked
+
+    // Media
+    in-out property <MediaData> media-data: {
+        has_media: false,
+        text_color: #ffffff,
+    };
+    callback media-play-pause();
+    callback media-next();
+    callback media-prev();
+    callback media-seek(float);
 
     callback update-clock();
     Timer {
@@ -85,7 +96,25 @@ export component Taskbar inherits Window {
 
         // === CENTER SECTION ===
         // (Future: Window title, media controls, etc.)
-        // Currently empty - items will go here
+        HorizontalLayout {
+            visible: root.media-data.has-media;
+            alignment: center;
+            MediaWidget {
+                data: root.media-data;
+                play-pause => {
+                    root.media-play-pause();
+                }
+                next => {
+                    root.media-next();
+                }
+                prev => {
+                    root.media-prev();
+                }
+                seek(x) => {
+                    root.media-seek(x);
+                }
+            }
+        }
 
         // === RIGHT SECTION ===
         HorizontalLayout {

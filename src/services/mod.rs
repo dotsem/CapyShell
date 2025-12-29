@@ -15,6 +15,7 @@ pub mod apps;
 pub mod battery;
 pub mod bluetooth;
 pub mod hyprland;
+pub mod mpris;
 pub mod network;
 pub mod volume;
 pub mod workspaces;
@@ -30,6 +31,7 @@ pub fn start_all() -> ServiceStatus {
     apps::start_indexing();
 
     let has_battery = battery::start_monitor();
+    mpris::start();
     volume::start_monitor();
     network::start_monitor();
     let has_bluetooth = bluetooth::start_monitor();

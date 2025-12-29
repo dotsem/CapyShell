@@ -6,6 +6,7 @@
 use crate::event_bus::CHANNEL_CAPACITY;
 use crate::services::battery::BatteryStatus;
 use crate::services::bluetooth::BluetoothStatus;
+use crate::services::mpris::MprisData;
 use crate::services::network::NetworkStatus;
 use crate::services::volume::VolumeStatus;
 use crate::services::workspaces::WorkspacesStatus;
@@ -22,6 +23,7 @@ pub enum TaskbarEvent {
     Bluetooth(BluetoothStatus),
     // Per-monitor events (filtered by receiver)
     Workspaces(WorkspacesStatus),
+    Mpris(Box<crate::services::mpris::MprisData>), // Boxed to keep enum size small
 }
 
 impl TaskbarEvent {
@@ -34,6 +36,7 @@ impl TaskbarEvent {
             TaskbarEvent::Network(_) => 2,
             TaskbarEvent::Bluetooth(_) => 3,
             TaskbarEvent::Workspaces(_) => 4,
+            TaskbarEvent::Mpris(_) => 5,
         }
     }
 }
@@ -83,6 +86,12 @@ pub fn send_bluetooth(data: BluetoothStatus) {
 #[inline]
 pub fn send_workspaces(data: WorkspacesStatus) {
     send(TaskbarEvent::Workspaces(data));
+}
+
+/// Send mpris data to all taskbars.
+#[inline]
+pub fn send_mpris(data: MprisData) {
+    send(TaskbarEvent::Mpris(Box::new(data)));
 }
 
 /// Subscribe to the event bus. Each taskbar gets its own receiver.
