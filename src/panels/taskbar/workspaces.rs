@@ -23,9 +23,8 @@ pub fn update_ui(ui: &Taskbar, status: &WorkspacesStatus, monitor_name: &str) {
         .iter()
         .enumerate()
         .map(|(i, ws)| {
-            let prev_occupied = i > 0 && !matches!(workspaces[i - 1].state, WorkspaceState::Empty);
-            let next_occupied = i + 1 < workspaces.len()
-                && !matches!(workspaces[i + 1].state, WorkspaceState::Empty);
+            let prev_occupied = i > 0 && workspaces[i - 1].occupied;
+            let next_occupied = i + 1 < workspaces.len() && workspaces[i + 1].occupied;
             workspace_to_slint(ws, prev_occupied, next_occupied)
         })
         .collect();
@@ -42,7 +41,6 @@ fn workspace_to_slint(
 ) -> WorkspaceData {
     let state = match ws.state {
         WorkspaceState::Empty => SlintWorkspaceState::Empty,
-        WorkspaceState::Occupied => SlintWorkspaceState::Occupied,
         WorkspaceState::Visible => SlintWorkspaceState::Visible,
         WorkspaceState::Active => SlintWorkspaceState::Active,
         WorkspaceState::Attention => SlintWorkspaceState::Attention,
@@ -60,6 +58,7 @@ fn workspace_to_slint(
         absolute_id: ws.absolute_id,
         state,
         icon,
+        occupied: ws.occupied,
         prev_occupied,
         next_occupied,
     }

@@ -20,6 +20,7 @@ export struct WorkspaceData {
     absolute_id: int,  // Absolute workspace ID for switching
     state: WorkspaceState,
     icon: image,
+    occupied: bool,
     prev_occupied: bool,  // Is the previous workspace non-empty?
     next_occupied: bool,  // Is the next workspace non-empty?
 }
@@ -38,8 +39,8 @@ component WorkspaceIndicator {
         }
     }
 
-    pure function get-vertical-side-border-radius(occupied: bool) -> length {
-        if (occupied) {
+    pure function get-vertical-side-border-radius(occupied: bool, neighbor_occupied: bool) -> length {
+        if (occupied && neighbor_occupied) {
             return 0px;
         } else {
             return 16px;
@@ -50,25 +51,35 @@ component WorkspaceIndicator {
     Rectangle {
         width: parent.width;
         height: parent.height;
-        border-top-left-radius: get-vertical-side-border-radius(data.prev_occupied);
-        border-bottom-left-radius: get-vertical-side-border-radius(data.prev_occupied);
-        border-top-right-radius: get-vertical-side-border-radius(data.next_occupied);
-        border-bottom-right-radius: get-vertical-side-border-radius(data.next_occupied);
+        border-top-left-radius: get-vertical-side-border-radius(data.occupied, data.prev_occupied);
+        border-bottom-left-radius: get-vertical-side-border-radius(data.occupied, data.prev_occupied);
+        border-top-right-radius: get-vertical-side-border-radius(data.occupied, data.next_occupied);
+        border-bottom-right-radius: get-vertical-side-border-radius(data.occupied, data.next_occupied);
         background: {
-            if data.state == WorkspaceState.Active {
-                MaterialPalette.primary
-            } else if data.state == WorkspaceState.Visible {
-                MaterialPalette.primary.darker(0.4)  // Dimmed for unfocused monitor
-            } else if data.state == WorkspaceState.Attention {
+            if data.state == WorkspaceState.Attention {
                 MaterialPalette.error
-            } else if data.state == WorkspaceState.Occupied {
+            } else if data.occupied {
                 MaterialPalette.surface-container
-            } else if touch.has-hover {
-                MaterialPalette.surface-container-high
             } else {
                 transparent
             }
         };
+
+        if touch.has-hover: Rectangle {
+            width: parent.width - 2px;
+            height: parent.height - 2px;
+            x: parent.x + 1px;
+            y: parent.y + 1px;
+            border-radius: 16px;
+            background: MaterialPalette.surface-container-high;
+        }
+
+        if data.state == WorkspaceState.Active: Rectangle {
+            width: parent.width;
+            height: parent.height;
+            border-radius: 16px;
+            background: MaterialPalette.primary;
+        }
 
         // Icon or number
         if data.icon.width > 0: Rectangle {

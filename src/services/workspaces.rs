@@ -18,7 +18,6 @@ use std::thread;
 pub enum WorkspaceState {
     #[default]
     Empty,
-    Occupied,
     Visible, // Active on this monitor but monitor not focused
     Active,  // Active on focused monitor
     Attention,
@@ -35,6 +34,8 @@ pub struct WorkspaceInfo {
     pub state: WorkspaceState,
     /// Path to app icon (if any windows).
     pub icon_path: Option<PathBuf>,
+    /// Whether this workspace is occupied.
+    pub occupied: bool,
     /// App class for the focused window (for icon lookup).
     pub app_class: Option<String>,
 }
@@ -177,8 +178,6 @@ pub fn get_status(monitor_name: &str) -> WorkspacesStatus {
             } else {
                 WorkspaceState::Visible
             }
-        } else if has_windows {
-            WorkspaceState::Occupied
         } else {
             WorkspaceState::Empty
         };
@@ -188,6 +187,7 @@ pub fn get_status(monitor_name: &str) -> WorkspacesStatus {
             absolute_id: ws_id, // Actual ID (1-10 or 11-20) for clicking
             state,
             icon_path,
+            occupied: has_windows,
             app_class,
         });
     }
