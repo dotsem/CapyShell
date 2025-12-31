@@ -1,0 +1,60 @@
+
+import {
+    MaterialPalette,
+} from "../../../material-1.0/ui/styling/material_palette.slint";
+import { Icons } from "../../../material-1.0/ui/icons/icons.slint";
+import { HorizontalBox } from "std-widgets.slint";
+
+export component ActiveWindow inherits Rectangle {
+    in property <image> appIcon;
+
+    clip: true;
+    width: 400px;
+    height: 48px;
+    background: MaterialPalette.surface_variant;
+    border-radius: 8px;
+
+    activeWindow := TouchArea {
+        width: 100%;
+        height: 100%;
+    }
+
+    VerticalLayout {
+        alignment: center;
+        HorizontalLayout {
+            Image {
+                width: 32px;
+                height: 32px;
+                source: Icons.battery_0_bar;
+            }
+
+            VerticalLayout {
+                horizontal-stretch: 1;
+
+                Text {
+                    font-weight: 400;
+                    font-size: 8px;
+                    color: MaterialPalette.on_surface_variant;
+                    text: "Active Window";
+                }
+
+                Text {
+                    font-weight: 500;
+                    font-size: 14px;
+                    color: MaterialPalette.on_surface;
+                    text: "Active Window";
+                }
+            }
+        }
+    }
+
+    settingsButton := Image {
+        opacity: activeWindow.has-hover ? 1 : 0;
+        source: Icons.settings_applications;
+        x: activeWindow.has-hover ? parent.width - settingsButton.width : parent.width - settingsButton.width + 8px;
+        animate x, opacity {
+            duration: 200ms;
+            easing: ease-in-out;
+        }
+    }
+}

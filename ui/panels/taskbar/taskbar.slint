@@ -22,6 +22,7 @@ import {
     WorkspaceData,
     WorkspaceState,
 } from "workspaces.slint";
+import { ActiveWindow } from "activeWindow.slint";
 
 export { WorkspaceData, WorkspaceState, MediaData }
 
@@ -49,6 +50,8 @@ export component Taskbar inherits Window {
 
     in-out property <BluetoothState> bluetooth-state: BluetoothState.Off;
     in-out property <bool> has-bluetooth: false;
+
+    in-out property <image> appIcon;
 
     // Workspaces
     in-out property <[WorkspaceData]> workspaces: [];
@@ -84,23 +87,24 @@ export component Taskbar inherits Window {
         spacing: 8px;
 
         // === LEFT SECTION ===
-        VerticalLayout {
-            alignment: center;
-            horizontal-stretch: 1;
-            TaskbarWorkspaces {
-                workspaces: root.workspaces;
-                workspace-clicked(id) => {
-                    root.workspace-clicked(id);
+        
+
+        HorizontalLayout {
+            alignment: start;
+
+            VerticalLayout {
+                alignment: center;
+                horizontal-stretch: 1;
+                TaskbarWorkspaces {
+                    workspaces: root.workspaces;
+                    workspace-clicked(id) => {
+                        root.workspace-clicked(id);
+                    }
                 }
             }
-        }
 
-        // === CENTER SECTION ===
-        // (Future: Window title, media controls, etc.)
-        HorizontalLayout {
-            visible: root.media-data.has-media;
-            alignment: center;
             MediaWidget {
+                visible: root.media-data.has-media;
                 data: root.media-data;
                 play-pause => {
                     root.media-play-pause();
@@ -114,6 +118,14 @@ export component Taskbar inherits Window {
                 seek(x) => {
                     root.media-seek(x);
                 }
+            }
+        }
+
+        // === CENTER SECTION ===
+        HorizontalLayout {
+            alignment: center;
+            ActiveWindow {
+                appIcon: root.appIcon;
             }
         }
 
