@@ -1,0 +1,22 @@
+import { MediaData } from "mediaDataStruct.slint";
+
+export component StateMetadata inherits VerticalLayout {
+    in property <MediaData> data;
+    padding: 4px;
+    padding-left: 8px;
+    padding-right: 8px;
+    Text {
+        text: root.data.title;
+        color: root.data.text-color;
+        font-size: 13px;
+        font-weight: 600;
+        overflow: elide;
+    }
+
+    Text {
+        text: root.data.artist;
+        color: root.data.text-color;
+        font-size: 12px;
+        overflow: elide;
+    }
+}

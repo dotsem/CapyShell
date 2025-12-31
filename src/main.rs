@@ -11,7 +11,7 @@ use hyprland::shared::HyprData;
 use log::{debug, error, info, warn};
 use panels::taskbar::events::TaskbarEvent;
 use panels::taskbar::taskbar::Taskbar;
-use panels::taskbar::{battery, bluetooth, clock, events, mpris, network, volume, workspaces};
+use panels::taskbar::{battery, bluetooth, clock, events, media, network, volume, workspaces};
 use slint::ComponentHandle;
 use spell_framework::{
     enchant_spells,
@@ -40,19 +40,18 @@ fn main() -> Result<(), Box<dyn Error>> {
     };
 
     if monitors.is_empty() {
-        warn!("No monitors found!");
-        return Ok(());
+        error!("No monitors found!");
+        return Err("No monitors found!".into());
     }
 
     debug!("Found {} monitors", monitors.len());
 
-    // Create window configs for all monitors
     let configs: Vec<(String, WindowConf)> = monitors
         .iter()
-        .map(|m| {
-            let name = format!("taskbar-{}", m.name);
+        .map(|monitor| {
+            let name = format!("taskbar-{}", monitor.name);
             let conf = WindowConf::new(
-                m.width as u32,
+                monitor.width as u32,
                 TASKBAR_HEIGHT,
                 (
                     Some(LayerAnchor::TOP | LayerAnchor::LEFT | LayerAnchor::RIGHT),
@@ -62,19 +61,17 @@ fn main() -> Result<(), Box<dyn Error>> {
                 LayerType::Top,
                 BoardType::None,
                 Some(TASKBAR_HEIGHT as i32),
-                Some(m.name.clone()),
+                Some(monitor.name.clone()),
             );
             (name, conf)
         })
         .collect();
 
-    // Convert to the format conjure_spells expects
     let configs_ref: Vec<(&str, WindowConf)> = configs
         .iter()
         .map(|(name, conf)| (name.as_str(), conf.clone()))
         .collect();
 
-    // Create all windows at once (sets up shared Slint platform)
     let windows: Vec<SpellWin> = SpellMultiWinHandler::conjure_spells(configs_ref);
 
     debug!("Created {} windows", windows.len());
@@ -132,7 +129,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                                 workspaces::update_ui(&ui, &status, &monitor_name_for_events);
                             }
                             TaskbarEvent::Mpris(data) => {
-                                mpris::update_ui(&ui, &data);
+                                media::update_ui(&ui, &data);
                             }
                         }
                     }
@@ -170,7 +167,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         let initial_workspaces = services::workspaces::get_status(&monitor_name);
         workspaces::update_ui(&ui, &initial_workspaces, &monitor_name);
 
-        mpris::attach_callbacks(&ui);
+        media::attach_callbacks(&ui);
 
         // Keep timer alive
         std::mem::forget(event_timer);

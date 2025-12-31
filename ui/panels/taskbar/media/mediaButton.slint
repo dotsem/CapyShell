@@ -1,0 +1,40 @@
+import {
+    StateLayer,
+} from "../../../../material-1.0/ui/components/state_layer.slint";
+import { Icons } from "../../../../material-1.0/ui/icons/icons.slint";
+import {
+    MaterialPalette,
+} from "../../../../material-1.0/ui/styling/material_palette.slint";
+
+export component MediaButton inherits Rectangle {
+    in property <image> icon;
+    in property <color> icon-color;
+    callback clicked;
+    out property <bool> has-hover: touch.has-hover;
+    width: 24px;
+    height: 24px;
+    border-radius: 12px;
+    StateLayer {
+        width: 100%;
+        height: 100%;
+    }
+
+    touch := TouchArea {
+        clicked => {
+            root.clicked();
+        }
+        mouse-cursor: pointer;
+    }
+
+    Rectangle {
+
+        background: touch.has-hover ? MaterialPalette.on_surface.with-alpha(0.2) : transparent;
+        border-radius: 12px;
+        Image {
+            source: root.icon;
+            colorize: root.icon-color;
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+        }
+    }
+}

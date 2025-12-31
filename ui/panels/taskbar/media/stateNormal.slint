@@ -1,0 +1,39 @@
+
+
+import { ProgressBar } from "progressBar.slint";
+import { MediaData } from "mediaDataStruct.slint";
+import { TimeFormatting } from "timeFormatting.slint";
+
+export component StateNormal inherits VerticalLayout {
+    in property <MediaData> data;
+
+    padding: 4px;
+    padding-left: 8px;
+    padding-right: 8px;
+    alignment: center;
+
+    Rectangle {
+        height: 20px;
+        clip: true;
+        Text {
+            text: root.data.title + " • " + root.data.artist;
+            color: root.data.text-color;
+            width: parent.width;
+            font-size: 13px;
+            font-weight: 600;
+            horizontal-alignment: center;
+            overflow: elide;
+        }
+    }
+
+    Rectangle {
+        height: 16px;
+
+        ProgressBar {
+            intractable: false;
+            text-color: root.data.text-color;
+            position_secs: root.data.position_secs;
+            length_secs: root.data.length_secs;
+        }
+    }
+}

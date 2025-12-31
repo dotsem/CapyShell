@@ -7,88 +7,13 @@ import {
 import {
     StateLayer,
 } from "../../../material-1.0/ui/components/state_layer.slint";
+import { ProgressBar } from "media/progressBar.slint";
+import { MediaData } from "media/mediaDataStruct.slint";
+import { StateMetadata } from "media/stateMetadata.slint";
+import { StateControls } from "media/stateControls.slint";
+import { StateNormal } from "media/stateNormal.slint";
 
-export struct MediaData {
-    title: string,
-    artist: string,
-    album_art: image,
-    blurred_art: image,
-    length_secs: float,
-    position_secs: float,
-    is_playing: bool,
-    has_media: bool,
-    text_color: color,
-}
 
-component MediaButton inherits Rectangle {
-    in property <string> type; // "play", "pause", "next", "prev"
-    in property <color> icon-color;
-    callback clicked;
-    width: 24px;
-    height: 24px;
-    border-radius: 12px;
-    StateLayer {
-        width: 100%;
-        height: 100%;
-    }
-
-    TouchArea {
-        clicked => {
-            root.clicked();
-        }
-    }
-    
-    // Play Icon
-    Path {
-        visible: root.type == "play";
-        width: 10px;
-        height: 12px;
-        x: (parent.width - self.width) / 2 + 1px; // Visual center
-        y: (parent.height - self.height) / 2;
-        fill: root.icon-color;
-        commands: "M 0 0 L 0 12 L 10 6 Z";
-    }
-    
-    // Pause Icon
-    HorizontalLayout {
-        visible: root.type == "pause";
-        spacing: 3px;
-        alignment: center;
-        Rectangle {
-            width: 3px;
-            height: 10px;
-            background: root.icon-color;
-        }
-
-        Rectangle {
-            width: 3px;
-            height: 10px;
-            background: root.icon-color;
-        }
-    }
-    
-    // Next Icon
-    Path {
-        visible: root.type == "next";
-        width: 10px;
-        height: 10px;
-        x: (parent.width - self.width) / 2;
-        y: (parent.height - self.height) / 2;
-        fill: root.icon-color;
-        commands: "M 0 0 L 0 10 L 7 5 Z M 7 0 L 7 10 L 10 10 L 10 0 Z";
-    }
-
-    // Prev Icon
-    Path {
-        visible: root.type == "prev";
-        width: 10px;
-        height: 10px;
-        x: (parent.width - self.width) / 2;
-        y: (parent.height - self.height) / 2;
-        fill: root.icon-color;
-        commands: "M 10 0 L 10 10 L 3 5 Z M 3 0 L 3 10 L 0 10 L 0 0 Z";
-    }
-}
 
 export component MediaWidget inherits Rectangle {
     in property <MediaData> data;
@@ -209,156 +134,34 @@ export component MediaWidget inherits Rectangle {
         
         // --- Content Section ---
         Rectangle {
-            // width: parent.width - 48px; // Implicit by layout properties usually, but HorizontalLayout children need sizing
+            width: parent.width - 48px; // Implicit by layout properties usually, but HorizontalLayout children need sizing
             horizontal-stretch: 1;
             height: 48px;
             clip: true;
-            
-            // Normal / Stacked Mode
-            VerticalLayout {
-                padding: 4px;
-                padding-left: 8px;
-                padding-right: 8px;
-                alignment: center;
-
-                // Title Line
-                Rectangle {
-                    height: 20px;
-                    clip: true;
-                    
-                    // Normal: Title + Artist inline
-                    Text {
-                        text: data.title + " • " + data.artist;
-                        color: data.text-color;
-                        width: parent.width;
-                        font-size: 13px;
-                        font-weight: 600;
-                        horizontal-alignment: left;
-                        visible: !root.is-hovering-widget && !root.is-hovering-art;
-                        overflow: elide;
-                    }
-                    
-                    // Hover Art: Title Stacked
-                    Text {
-                        text: data.title;
-                        color: data.text-color;
-                        font-size: 13px;
-                        font-weight: 600;
-                        visible: root.is-hovering-art;
-                        overflow: elide;
-                    }
-
-                    // Hover Widget: Time Played
-                    Text {
-                        text: root.format-time(data.position_secs);
-                        color: data.text-color;
-                        font-size: 12px;
-                        x: 0;
-                        visible: root.is-hovering-widget;
-                    }
-                }
-                
-                // Bottom Line
-                Rectangle {
-                    height: 16px;
-                    
-                    // Normal: Progress Bar
-                    Rectangle {
-                        visible: !root.is-hovering-art;
-                        height: 4px;
-                        width: 100%;
-                        background: data.text-color.with-alpha(0.3);
-                        border-radius: 2px;
-                        y: 8px; // Center vertically in 16px
-                        
-                        // Fill
-                        Rectangle {
-                            x: 0;
-                            width: parent.width * (data.position_secs / max(1.0, data.length_secs));
-                            height: 100%;
-                            background: data.text-color;
-                            border-radius: 2px;
-                        }
-
-                        // Touch area for seek
-                        TouchArea {
-                            width: 100%;
-                            height: 16px;
-                            y: -6px; // Expand hit area
-                            clicked => {
-                                root.seek(self.mouse-x / self.width);
-                            }
-                        }
-                    }
-
-                    // Hover Art: Artist Name (Stacked)
-                    Text {
-                        text: data.artist;
-                        color: data.text-color;
-                        font-size: 12px;
-                        overflow: elide;
-                        visible: root.is-hovering-art;
-                    }
-
-                    // Hover Widget: Total Time (Right aligned)
-                    Text {
-                        text: root.format-time(data.length_secs);
-                        color: data.text-color;
-                        font-size: 12px;
-                        x: parent.width - self.width;
-                        visible: root.is-hovering-widget;
-                    }
-                }
+            if root.is-hovering-art: StateMetadata {
+                data: root.data;
             }
 
-            // Hover Widget: Controls Overlay (Center)
-            HorizontalLayout {
-                visible: root.is-hovering-widget;
-                alignment: center;
-                spacing: 12px;
-                y: 12px; // Center vertically
-                
-                // Prev
-                MediaButton {
-                    type: "prev";
-                    icon-color: root.data.text-color;
-                    clicked => {
-                        root.prev();
-                    }
-                }
-                
-                // Play/Pause
-                MediaButton {
-                    type: root.data.is-playing ? "pause" : "play";
-                    icon-color: root.data.text-color;
-                    clicked => {
-                        root.play-pause();
-                    }
-                }
+            state-controls := StateControls {
+                width: 100%;
+                height: 100%;
+                visible: !root.is-hovering-art && (root.is-hovering-widget || self.has-hover);
+                data: root.data;
+                play-pause() => root.play-pause();
+                next() => root.next();
+                prev() => root.prev();
+                seek(val) => root.seek(val);
+            }
 
-                // Next
-                MediaButton {
-                    type: "next";
-                    icon-color: root.data.text-color;
-                    clicked => {
-                        root.next();
-                    }
-                }
+            StateNormal {
+                width: 100%;
+                height: 100%;
+                visible: !root.is-hovering-art && !state-controls.visible;
+                data: root.data;
             }
         }
     }
     
     // Helper
-    pure function format-time(seconds: float) -> string {
-        if (seconds < 0) {
-            return "0:00";
-        }
-        let m = floor(seconds / 60);
-        let s = floor(seconds - m * 60);
-        return time-pad(m) + ":" + time-pad(s);
-    }
-
-    pure function time-pad(time-unit: int) -> string {
-        return time-unit < 10 ? "0" + time-unit : time-unit;
-    }
+   
 }

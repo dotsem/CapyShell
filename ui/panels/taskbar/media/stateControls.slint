@@ -1,0 +1,91 @@
+
+import { MediaData } from "mediaDataStruct.slint";
+import { ProgressBar } from "progressBar.slint";
+import { TimeFormatting } from "timeFormatting.slint";
+import { MediaButton } from "mediaButton.slint";
+
+import {
+    Icons,
+} from "../../../../material-1.0/ui/icons/icons.slint";
+import {
+    BaseButton,
+} from "../../../../material-1.0/ui/components/base_button.slint";
+
+export component StateControls inherits VerticalLayout {
+    in property <MediaData> data;
+    callback seek(val: float);
+    callback play-pause();
+    callback prev();
+    callback next();
+
+    out property <bool> has-hover: prev.has-hover || pause-play-btn.has-hover || next.has-hover || progress.has-hover;
+
+    padding: 4px;
+    padding-left: 8px;
+    padding-right: 8px;
+    alignment: center;
+
+    HorizontalLayout {
+        height: 20px;
+        Text {
+            text: TimeFormatting.format-time(root.data.position_secs);
+            color: root.data.text-color;
+            font-size: 12px;
+            vertical-alignment: bottom;
+        }
+
+        Rectangle {
+            horizontal-stretch: 1;
+        }
+
+        prev := MediaButton {
+            icon: Icons.skip_previous;
+            icon-color: root.data.text-color;
+            clicked => {
+                root.prev();
+            }
+        }
+
+        pause-play-btn := MediaButton {
+            icon: root.data.is-playing ? Icons.pause : Icons.play_arrow;
+            icon-color: root.data.text-color;
+            clicked => {
+                if (root.data.is-playing) {
+                    root.play-pause();
+                } else {
+                    root.play-pause();
+                }
+            }
+        }
+
+        next := MediaButton {
+            icon: Icons.skip_next;
+            icon-color: root.data.text-color;
+            clicked => {
+                root.next();
+            }
+        }
+
+        Rectangle {
+            horizontal-stretch: 1;
+        }
+
+        Text {
+            text: TimeFormatting.format-time(root.data.length_secs);
+            color: root.data.text-color;
+            font-size: 12px;
+            vertical-alignment: bottom;
+        }
+    }
+
+    Rectangle {
+        height: 16px;
+
+        progress := ProgressBar {
+            text-color: root.data.text-color;
+            position_secs: root.data.position_secs;
+            length_secs: root.data.length_secs;
+            seek(val) => root.seek(val);
+        }
+    }
+}

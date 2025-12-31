@@ -3,7 +3,7 @@
 //! Includes position interpolation for smooth progress bar updates.
 
 use crate::panels::taskbar::taskbar::{MediaData, Taskbar};
-use crate::services::mpris::MprisData as ServiceMprisData;
+use crate::services::media::MprisData as ServiceMprisData;
 use log::{error, info, warn};
 use mpris::PlayerFinder;
 use slint::{ComponentHandle, Image, Timer, TimerMode};

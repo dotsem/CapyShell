@@ -6,7 +6,7 @@
 use crate::event_bus::CHANNEL_CAPACITY;
 use crate::services::battery::BatteryStatus;
 use crate::services::bluetooth::BluetoothStatus;
-use crate::services::mpris::MprisData;
+use crate::services::media::MprisData;
 use crate::services::network::NetworkStatus;
 use crate::services::volume::VolumeStatus;
 use crate::services::workspaces::WorkspacesStatus;
@@ -23,7 +23,7 @@ pub enum TaskbarEvent {
     Bluetooth(BluetoothStatus),
     // Per-monitor events (filtered by receiver)
     Workspaces(WorkspacesStatus),
-    Mpris(Box<crate::services::mpris::MprisData>), // Boxed to keep enum size small
+    Mpris(Box<crate::services::media::MprisData>), // Boxed to keep enum size small
 }
 
 impl TaskbarEvent {

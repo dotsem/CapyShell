@@ -1,0 +1,34 @@
+
+export component ProgressBar inherits Rectangle {
+    in property <color> text-color;
+    in property <float> position_secs;
+    in property <float> length_secs;
+    in property <bool> intractable: true;
+    out property <bool> has-hover: touch.has-hover;
+    callback seek(val: float);
+
+    height: 4px;
+    width: 100%;
+    background: root.text-color.with-alpha(0.3);
+    border-radius: 2px;
+    y: 8px;
+    Rectangle {
+        x: 0;
+        width: parent.width * (root.position_secs / max(1.0, root.length_secs));
+        height: 100%;
+        background: root.text-color;
+        border-radius: 2px;
+    }
+
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        width: root.intractable ? 100% : 0%;
+        height: 16px;
+        y: -6px;
+        clicked => {
+            if (root.intractable) {
+                seek(self.mouse-x / self.width);
+            }
+        }
+    }
+}
