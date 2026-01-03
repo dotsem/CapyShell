@@ -77,6 +77,13 @@ component WorkspaceIndicator {
             background: MaterialPalette.surface-container-high;
         }
 
+        if data.state == WorkspaceState.Visible: Rectangle {
+            width: parent.width;
+            height: parent.height;
+            border-radius: 16px;
+            background: MaterialPalette.secondary;
+        }
+
         if data.state == WorkspaceState.Active: Rectangle {
             width: parent.width;
             height: parent.height;
