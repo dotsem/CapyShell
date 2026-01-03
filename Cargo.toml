@@ -13,7 +13,8 @@ env_logger = "0.11"
 
 # UI
 slint = { version = "1.14.1", features = ["renderer-software"] }
-spell-framework = { git = "https://github.com/dotsem/Spell" }
+# spell-framework = { git = "https://github.com/dotsem/Spell" }
+spell-framework = { path = "../Spell/spell-framework" }
 
 # System info
 sysinfo = "0.32"

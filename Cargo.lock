@@ -5234,7 +5234,6 @@ dependencies = [
 [[package]]
 name = "spell-framework"
 version = "1.0.1"
-source = "git+https://github.com/dotsem/Spell#cb7c181daf23512efd881a8019fb75546bd7060a"
 dependencies = [
  "env_logger",
  "event-listener",
