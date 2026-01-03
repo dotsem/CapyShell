@@ -9,23 +9,27 @@ import {
 export enum WorkspaceState {
     Empty,
     Occupied,
-    Visible,   // Active on unfocused monitor (darker)
-    Active,    // Active on focused monitor (bright)
+    Visible,   
+    Active, 
     Attention,
 }
 
+// TODO: let user choose between relative & absolute IDs
+
 // Data for a single workspace
 export struct WorkspaceData {
-    id: int,           // Relative ID (1-10) for display
-    absolute_id: int,  // Absolute workspace ID for switching
+    id: int, // Relative ID
+    absolute_id: int,
     state: WorkspaceState,
     icon: image,
     occupied: bool,
-    prev_occupied: bool,  // Is the previous workspace non-empty?
-    next_occupied: bool,  // Is the next workspace non-empty?
+    prev_occupied: bool,  
+    next_occupied: bool, 
 }
 
-// Single workspace indicator (clickable)
+// Single workspace indicator
+// Includes an icon of the app on the workspace or the number of that workspace
+// When left or right neighbors are occupied, the edges join together
 component WorkspaceIndicator {
     in property <WorkspaceData> data;
     callback clicked(int);
@@ -34,6 +38,7 @@ component WorkspaceIndicator {
     height: 32px;
 
     touch := TouchArea {
+        mouse-cursor: pointer;
         clicked => {
             root.clicked(data.absolute-id);
         }
@@ -94,7 +99,6 @@ component WorkspaceIndicator {
             }
         }
 
-        // Fallback: show workspace number if no icon
         if data.icon.width == 0: Text {
             text: data.id;
             font-size: 12px;
