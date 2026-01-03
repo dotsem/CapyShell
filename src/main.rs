@@ -164,7 +164,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
 
         // Initial workspace state
-        let initial_workspaces = services::workspaces::get_status(&monitor_name);
+        let initial_workspaces = services::hyprland::workspaces::get_status(&monitor_name);
         workspaces::update_ui(&ui, &initial_workspaces, &monitor_name);
 
         media::attach_callbacks(&ui);

@@ -5,7 +5,7 @@
 use crate::panels::taskbar::taskbar::{
     Taskbar, WorkspaceData, WorkspaceState as SlintWorkspaceState,
 };
-use crate::services::workspaces::{WorkspaceInfo, WorkspaceState, WorkspacesStatus};
+use crate::services::hyprland::workspaces::{WorkspaceInfo, WorkspaceState, WorkspacesStatus};
 use log::debug;
 use slint::{Image, ModelRc, VecModel};
 use std::rc::Rc;

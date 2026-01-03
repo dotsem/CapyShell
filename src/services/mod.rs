@@ -18,7 +18,6 @@ pub mod hyprland;
 pub mod media;
 pub mod network;
 pub mod volume;
-pub mod workspaces;
 
 use log::info;
 
@@ -35,7 +34,7 @@ pub fn start_all() -> ServiceStatus {
     volume::start_monitor();
     network::start_monitor();
     let has_bluetooth = bluetooth::start_monitor();
-    workspaces::start_monitor(); // Also handles monitor hotplug
+    crate::services::hyprland::start_monitor(); // Also handles monitor hotplug
 
     ServiceStatus {
         has_battery,

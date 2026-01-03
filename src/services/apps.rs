@@ -98,7 +98,7 @@ pub fn start_indexing() {
         }
 
         // Trigger workspace updates to refresh icons in UI
-        crate::services::workspaces::trigger_refresh();
+        crate::services::hyprland::workspaces::trigger_refresh();
     });
 }
 

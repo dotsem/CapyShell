@@ -1,32 +1,27 @@
-//! Workspace monitoring service using Hyprland IPC.
-//!
-//! Monitors workspace state and broadcasts changes to taskbar.
-//! Each monitor displays workspaces in a fixed range (monitor 0: 1-10, monitor 1: 11-20, etc).
-
 use crate::panels::taskbar::events;
+use crate::services::hyprland::WORKSPACES_PER_MONITOR;
+use crate::services::hyprland::icon;
 use hyprland::data::{Client, Clients, Monitors, Workspaces};
-use hyprland::event_listener::EventListener;
 use hyprland::shared::{HyprData, HyprDataVec};
-use log::{debug, error, info};
+use log::{debug, info};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
-use std::thread;
 
 /// Workspace state for UI display.
 #[derive(Clone, Copy, Debug, PartialEq, Default)]
 pub enum WorkspaceState {
     #[default]
     Empty,
-    Visible, // Active on this monitor but monitor not focused
-    Active,  // Active on focused monitor
-    Attention,
+    Visible,   // Active on this monitor but monitor not focused
+    Active,    // Active on focused monitor
+    Attention, // TODO: make attention work
 }
 
 /// Information about a single workspace.
 #[derive(Clone, Debug, Default)]
 pub struct WorkspaceInfo {
-    /// Workspace ID (1-10 relative to monitor) for display.
+    /// Workspace ID (1-n relative to monitor) for display.
     pub id: i32,
     /// Absolute workspace ID for switching.
     pub absolute_id: i32,
@@ -37,6 +32,7 @@ pub struct WorkspaceInfo {
     /// Whether this workspace is occupied.
     pub occupied: bool,
     /// App class for the focused window (for icon lookup).
+    /// TODO: use or delete
     pub app_class: Option<String>,
 }
 
@@ -45,7 +41,7 @@ pub struct WorkspaceInfo {
 pub struct WorkspacesStatus {
     /// Monitor name this update is for.
     pub monitor_name: String,
-    /// Workspaces for this monitor (always 10).
+    /// Workspaces for this monitor.
     pub workspaces: Vec<WorkspaceInfo>,
 }
 
@@ -84,7 +80,7 @@ impl WorkspaceTracker {
             return cached.clone();
         }
 
-        let icon_path = lookup_icon(app_class);
+        let icon_path = icon::lookup_icon(app_class);
         debug!("Icon lookup for '{}': {:?}", app_class, icon_path);
         self.icon_cache
             .insert(app_class.to_string(), icon_path.clone());
@@ -105,27 +101,7 @@ fn get_tracker() -> Arc<RwLock<WorkspaceTracker>> {
         .clone()
 }
 
-/// Trigger a refresh of all workspace UIs.
-/// Called after icon indexing completes to update icons.
-pub fn trigger_refresh() {
-    info!("Triggering workspace refresh for icon updates...");
-
-    // Clear the icon cache so we pick up newly indexed icons
-    {
-        let tracker = get_tracker();
-        let mut tracker = tracker.write().unwrap();
-        tracker.icon_cache.clear();
-    }
-
-    // Send updates to all monitors
-    send_all_updates();
-}
-
-/// Number of workspaces to show per monitor.
-const WORKSPACES_PER_MONITOR: i32 = 10;
-
 /// Get current workspace status for a specific monitor.
-/// Monitor 0 shows workspaces 1-10, Monitor 1 shows 11-20, etc.
 pub fn get_status(monitor_name: &str) -> WorkspacesStatus {
     let tracker = get_tracker();
     let mut tracker = tracker.write().unwrap();
@@ -183,8 +159,8 @@ pub fn get_status(monitor_name: &str) -> WorkspacesStatus {
         };
 
         workspaces.push(WorkspaceInfo {
-            id: relative_id,    // Show 1-10 for display
-            absolute_id: ws_id, // Actual ID (1-10 or 11-20) for clicking
+            id: relative_id,
+            absolute_id: ws_id,
             state,
             icon_path,
             occupied: has_windows,
@@ -198,65 +174,23 @@ pub fn get_status(monitor_name: &str) -> WorkspacesStatus {
     }
 }
 
-/// Start the workspace monitoring background thread.
-/// Also handles monitor hotplug to restart the application.
-pub fn start_monitor() {
-    info!("Starting workspace monitor...");
+/// Trigger a refresh of all workspace UIs.
+/// Called after icon indexing completes to update icons.
+pub(crate) fn trigger_refresh() {
+    info!("Triggering workspace refresh for icon updates...");
 
-    thread::spawn(move || {
-        let mut listener = EventListener::new();
+    // Clear the icon cache so we pick up newly indexed icons
+    {
+        let tracker = get_tracker();
+        let mut tracker = tracker.write().unwrap();
+        tracker.icon_cache.clear();
+    }
 
-        // === Monitor hotplug handlers (trigger restart) ===
-        listener.add_monitor_added_handler(|event_data| {
-            debug!(
-                "Monitor added: {}. Restarting to reconfigure...",
-                event_data.name
-            );
-            thread::sleep(std::time::Duration::from_millis(200));
-            super::hyprland::restart_process();
-        });
-
-        listener.add_monitor_removed_handler(|name| {
-            debug!("Monitor removed: {}. Restarting to reconfigure...", name);
-            thread::sleep(std::time::Duration::from_millis(200));
-            super::hyprland::restart_process();
-        });
-
-        // === Workspace event handlers ===
-        listener.add_workspace_changed_handler(|ws| {
-            debug!("Workspace changed event: {:?}", ws);
-            send_all_updates();
-        });
-
-        listener.add_active_window_changed_handler(|win| {
-            debug!("Active window changed: {:?}", win);
-            send_all_updates();
-        });
-
-        listener.add_window_opened_handler(|win| {
-            debug!("Window opened: {:?}", win);
-            send_all_updates();
-        });
-
-        listener.add_window_closed_handler(|addr| {
-            debug!("Window closed: {:?}", addr);
-            send_all_updates();
-        });
-
-        listener.add_urgent_state_changed_handler(|addr| {
-            debug!("Urgent state changed: {:?}", addr);
-            send_all_updates();
-        });
-
-        info!("Hyprland event listener active (workspaces + hotplug)");
-        if let Err(e) = listener.start_listener() {
-            error!("Hyprland listener failed: {}", e);
-        }
-    });
+    send_update_to_all_monitors();
 }
 
 /// Send workspace updates to all monitors.
-fn send_all_updates() {
+pub(super) fn send_update_to_all_monitors() {
     // Get monitor names directly from Hyprland (bypass tracker)
     let monitor_names: Vec<String> = Monitors::get()
         .map(|m| m.iter().map(|m| m.name.clone()).collect())
@@ -284,9 +218,4 @@ fn send_all_updates() {
         );
         events::send_workspaces(status);
     }
-}
-
-/// Look up icon for app class using the apps service.
-fn lookup_icon(app_class: &str) -> Option<PathBuf> {
-    crate::services::apps::get_icon(app_class)
 }

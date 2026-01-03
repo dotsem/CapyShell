@@ -6,10 +6,10 @@
 use crate::event_bus::CHANNEL_CAPACITY;
 use crate::services::battery::BatteryStatus;
 use crate::services::bluetooth::BluetoothStatus;
+use crate::services::hyprland::workspaces::WorkspacesStatus;
 use crate::services::media::MprisData;
 use crate::services::network::NetworkStatus;
 use crate::services::volume::VolumeStatus;
-use crate::services::workspaces::WorkspacesStatus;
 use std::sync::OnceLock;
 use tokio::sync::broadcast::{self, Receiver, Sender};
 
