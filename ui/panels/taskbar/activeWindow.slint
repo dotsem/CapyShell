@@ -5,8 +5,14 @@ import {
 import { Icons } from "../../../material-1.0/ui/icons/icons.slint";
 import { HorizontalBox } from "std-widgets.slint";
 
+export struct ActiveWindowData {
+    app: string,
+    window_title: string,
+    icon: image,
+}
+
 export component ActiveWindow inherits Rectangle {
-    in property <image> appIcon;
+    in property <ActiveWindowData> activeWindow;
 
     clip: true;
     width: 400px;
@@ -35,14 +41,14 @@ export component ActiveWindow inherits Rectangle {
                     font-weight: 400;
                     font-size: 8px;
                     color: MaterialPalette.on_surface_variant;
-                    text: "Active Window";
+                    text: root.activeWindow.app;
                 }
 
                 Text {
                     font-weight: 500;
                     font-size: 14px;
                     color: MaterialPalette.on_surface;
-                    text: "Active Window";
+                    text: root.activeWindow.window_title;
                 }
             }
         }

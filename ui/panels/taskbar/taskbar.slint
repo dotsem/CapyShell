@@ -22,9 +22,9 @@ import {
     WorkspaceData,
     WorkspaceState,
 } from "workspaces.slint";
-import { ActiveWindow } from "activeWindow.slint";
+import { ActiveWindow, ActiveWindowData } from "activeWindow.slint";
 
-export { WorkspaceData, WorkspaceState, MediaData }
+export { WorkspaceData, WorkspaceState, MediaData, ActiveWindowData }
 
 export component Taskbar inherits Window {
     init => {
@@ -57,6 +57,7 @@ export component Taskbar inherits Window {
     in-out property <[WorkspaceData]> workspaces: [];
     callback workspace-clicked(int);  // Called when workspace is clicked
 
+    in-out property <ActiveWindowData> activeWindow;
     // Media
     in-out property <MediaData> media-data: {
         has_media: false,
@@ -84,7 +85,7 @@ export component Taskbar inherits Window {
     ActiveWindow {
         x: (root.width - self.width) / 2;
         y: (root.height - self.height) / 2;
-        appIcon: root.appIcon;
+        activeWindow: root.activeWindow;
     }
 
     HorizontalLayout {

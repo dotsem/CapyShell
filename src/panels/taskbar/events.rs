@@ -6,10 +6,11 @@
 use crate::event_bus::CHANNEL_CAPACITY;
 use crate::services::battery::BatteryStatus;
 use crate::services::bluetooth::BluetoothStatus;
-use crate::services::hyprland::workspaces::WorkspacesStatus;
 use crate::services::media::MprisData;
 use crate::services::network::NetworkStatus;
 use crate::services::volume::VolumeStatus;
+use crate::services::wm::WorkspacesStatus;
+use crate::services::wm::types::ActiveWindowInfo;
 use std::sync::OnceLock;
 use tokio::sync::broadcast::{self, Receiver, Sender};
 
@@ -24,6 +25,7 @@ pub enum TaskbarEvent {
     // Per-monitor events (filtered by receiver)
     Workspaces(WorkspacesStatus),
     Mpris(Box<crate::services::media::MprisData>), // Boxed to keep enum size small
+    ActiveWindow(ActiveWindowInfo),
 }
 
 impl TaskbarEvent {
@@ -37,6 +39,7 @@ impl TaskbarEvent {
             TaskbarEvent::Bluetooth(_) => 3,
             TaskbarEvent::Workspaces(_) => 4,
             TaskbarEvent::Mpris(_) => 5,
+            TaskbarEvent::ActiveWindow(_) => 6,
         }
     }
 }
@@ -92,6 +95,12 @@ pub fn send_workspaces(data: WorkspacesStatus) {
 #[inline]
 pub fn send_mpris(data: MprisData) {
     send(TaskbarEvent::Mpris(Box::new(data)));
+}
+
+/// Send active window data to all taskbars.
+#[inline]
+pub fn send_active_window(data: ActiveWindowInfo) {
+    send(TaskbarEvent::ActiveWindow(data));
 }
 
 /// Subscribe to the event bus. Each taskbar gets its own receiver.

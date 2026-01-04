@@ -24,7 +24,6 @@ pub fn hotplug() {
 
     let err = Command::new(exe).args(args).exec();
 
-    // If we get here, exec failed
     error!("Failed to hotplug CapyShell: {}", err);
     std::process::exit(1);
 }

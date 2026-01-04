@@ -1,49 +1,14 @@
 use crate::panels::taskbar::events;
-use crate::services::hyprland::WORKSPACES_PER_MONITOR;
-use crate::services::hyprland::icon;
+use crate::services::wm::hyprland_wm::WORKSPACES_PER_MONITOR;
+use crate::services::wm::hyprland_wm::icon;
+use crate::services::wm::{WorkspaceInfo, WorkspaceState, WorkspacesStatus};
 use hyprland::data::{Client, Clients, Monitors, Workspaces};
 use hyprland::shared::{HyprData, HyprDataVec};
 use log::{debug, info};
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::OnceLock;
 use std::sync::{Arc, RwLock};
-
-/// Workspace state for UI display.
-#[derive(Clone, Copy, Debug, PartialEq, Default)]
-pub enum WorkspaceState {
-    #[default]
-    Empty,
-    Visible,   // Active on this monitor but monitor not focused
-    Active,    // Active on focused monitor
-    Attention, // TODO: make attention work
-}
-
-/// Information about a single workspace.
-#[derive(Clone, Debug, Default)]
-pub struct WorkspaceInfo {
-    /// Workspace ID (1-n relative to monitor) for display.
-    pub id: i32,
-    /// Absolute workspace ID for switching.
-    pub absolute_id: i32,
-    /// Current state.
-    pub state: WorkspaceState,
-    /// Path to app icon (if any windows).
-    pub icon_path: Option<PathBuf>,
-    /// Whether this workspace is occupied.
-    pub occupied: bool,
-    /// App class for the focused window (for icon lookup).
-    /// TODO: use or delete
-    pub app_class: Option<String>,
-}
-
-/// Status update for a specific monitor's workspaces.
-#[derive(Clone, Debug)]
-pub struct WorkspacesStatus {
-    /// Monitor name this update is for.
-    pub monitor_name: String,
-    /// Workspaces for this monitor.
-    pub workspaces: Vec<WorkspaceInfo>,
-}
 
 /// Shared state for workspace tracking.
 struct WorkspaceTracker {
@@ -89,7 +54,7 @@ impl WorkspaceTracker {
 }
 
 /// Global tracker state.
-static TRACKER: std::sync::OnceLock<Arc<RwLock<WorkspaceTracker>>> = std::sync::OnceLock::new();
+static TRACKER: OnceLock<Arc<RwLock<WorkspaceTracker>>> = OnceLock::new();
 
 fn get_tracker() -> Arc<RwLock<WorkspaceTracker>> {
     TRACKER
@@ -186,11 +151,11 @@ pub(crate) fn trigger_refresh() {
         tracker.icon_cache.clear();
     }
 
-    send_update_to_all_monitors();
+    send_workspace_update_to_all_monitors();
 }
 
 /// Send workspace updates to all monitors.
-pub(super) fn send_update_to_all_monitors() {
+pub(super) fn send_workspace_update_to_all_monitors() {
     // Get monitor names directly from Hyprland (bypass tracker)
     let monitor_names: Vec<String> = Monitors::get()
         .map(|m| m.iter().map(|m| m.name.clone()).collect())
@@ -201,11 +166,11 @@ pub(super) fn send_update_to_all_monitors() {
         return;
     }
 
-    info!("Sending workspace updates to monitors: {:?}", monitor_names);
+    debug!("Sending workspace updates to monitors: {:?}", monitor_names);
 
     for monitor_name in monitor_names {
         let status = get_status(&monitor_name);
-        info!(
+        debug!(
             "Sending update for monitor '{}': {} workspaces, visible={}",
             status.monitor_name,
             status.workspaces.len(),

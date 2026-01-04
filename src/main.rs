@@ -6,6 +6,8 @@ mod event_bus;
 mod panels;
 mod services;
 
+use crate::panels::taskbar::active_window;
+use crate::services::wm::hyprland_wm;
 use hyprland::data::{Monitor, Monitors};
 use hyprland::shared::HyprData;
 use log::{debug, error, info, warn};
@@ -76,7 +78,10 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     debug!("Created {} windows", windows.len());
 
-    // Now create Slint UIs for each window
+    // Init active window
+    hyprland_wm::active_window::init_active_window();
+
+    // create Slint UIs for each window
     let mut uis: Vec<Taskbar> = Vec::new();
     for (i, _waywin) in windows.iter().enumerate() {
         let ui = Taskbar::new()?;
@@ -131,6 +136,9 @@ fn main() -> Result<(), Box<dyn Error>> {
                             TaskbarEvent::Mpris(data) => {
                                 media::update_ui(&ui, &data);
                             }
+                            TaskbarEvent::ActiveWindow(data) => {
+                                active_window::update_ui(&ui, &data);
+                            }
                         }
                     }
                 }
@@ -164,10 +172,14 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
 
         // Initial workspace state
-        let initial_workspaces = services::hyprland::workspaces::get_status(&monitor_name);
+        let initial_workspaces = hyprland_wm::workspaces::get_status(&monitor_name);
         workspaces::update_ui(&ui, &initial_workspaces, &monitor_name);
 
         media::attach_callbacks(&ui);
+
+        // Init active window
+        let initial_active_window = hyprland_wm::active_window::get_active_window();
+        active_window::update_ui(&ui, &initial_active_window);
 
         // Keep timer alive
         std::mem::forget(event_timer);

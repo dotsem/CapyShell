@@ -4,20 +4,19 @@
 //! Each service spawns a single background thread that all panels share.
 //!
 //! - `apps` - App catalog and icon lookup with caching
-//! - `workspaces` - Workspace state, app icons, and monitor hotplug
+//! - `wm` - Window manager abstraction (currently supports Hyprland)
 //! - `volume` - PulseAudio/PipeWire volume monitoring
 //! - `battery` - Battery status via D-Bus
 //! - `network` - Network status via NetworkManager D-Bus
 //! - `bluetooth` - Bluetooth status via BlueZ D-Bus
-//! - `hyprland` - Utility functions (restart on hotplug)
 
 pub mod apps;
 pub mod battery;
 pub mod bluetooth;
-pub mod hyprland;
 pub mod media;
 pub mod network;
 pub mod volume;
+pub mod wm;
 
 use log::info;
 
@@ -26,7 +25,6 @@ use log::info;
 pub fn start_all() -> ServiceStatus {
     info!("Starting shared services...");
 
-    // Start app catalog indexing FIRST (non-blocking, runs in background)
     apps::start_indexing();
 
     let has_battery = battery::start_monitor();
@@ -34,7 +32,7 @@ pub fn start_all() -> ServiceStatus {
     volume::start_monitor();
     network::start_monitor();
     let has_bluetooth = bluetooth::start_monitor();
-    crate::services::hyprland::start_monitor(); // Also handles monitor hotplug
+    wm::start_monitor();
 
     ServiceStatus {
         has_battery,

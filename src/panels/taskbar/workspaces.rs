@@ -2,12 +2,12 @@
 //!
 //! Receives workspace events from the service layer and updates the Slint UI.
 
+use crate::panels::taskbar::load_icon;
 use crate::panels::taskbar::taskbar::{
     Taskbar, WorkspaceData, WorkspaceState as SlintWorkspaceState,
 };
-use crate::services::hyprland::workspaces::{WorkspaceInfo, WorkspaceState, WorkspacesStatus};
-use log::debug;
-use slint::{Image, ModelRc, VecModel};
+use crate::services::wm::{WorkspaceInfo, WorkspaceState, WorkspacesStatus};
+use slint::{ModelRc, VecModel};
 use std::rc::Rc;
 
 /// Update the taskbar UI with workspace data.
@@ -61,20 +61,6 @@ fn workspace_to_slint(
         occupied: ws.occupied,
         prev_occupied,
         next_occupied,
-    }
-}
-
-/// Load an icon from a file path into a Slint Image.
-fn load_icon(path: &std::path::Path) -> Option<Image> {
-    match Image::load_from_path(path) {
-        Ok(image) => {
-            debug!("Successfully loaded icon: {:?}", path);
-            Some(image)
-        }
-        Err(e) => {
-            debug!("Failed to load icon {:?}: {}", path, e);
-            None
-        }
     }
 }
 
