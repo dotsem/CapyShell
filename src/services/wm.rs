@@ -1,7 +1,7 @@
 pub mod hyprland_wm;
 pub mod types;
 
-pub use types::{WindowInfo, WorkspaceInfo, WorkspaceState, WorkspacesStatus};
+pub use types::{WorkspaceInfo, WorkspaceState, WorkspacesStatus};
 
 use std::sync::OnceLock;
 
@@ -13,14 +13,14 @@ pub fn get_current_de() -> &'static str {
 
 pub fn start_monitor() {
     match get_current_de() {
-        "hyprland" => crate::services::wm::hyprland_wm::start_monitor(),
+        "hyprland" => hyprland_wm::start_monitor(),
         de => log::warn!("Unsupported DE: {}", de),
     }
 }
 
 pub fn get_workspaces_status(monitor_name: &str) -> WorkspacesStatus {
     match get_current_de() {
-        "hyprland" => crate::services::wm::hyprland_wm::workspaces::get_status(monitor_name),
+        "hyprland" => hyprland_wm::workspaces::get_status(monitor_name),
         _ => WorkspacesStatus {
             monitor_name: monitor_name.to_string(),
             workspaces: Vec::new(),
@@ -30,7 +30,7 @@ pub fn get_workspaces_status(monitor_name: &str) -> WorkspacesStatus {
 
 pub fn trigger_refresh() {
     match get_current_de() {
-        "hyprland" => crate::services::wm::hyprland_wm::workspaces::trigger_refresh(),
+        "hyprland" => hyprland_wm::trigger_refresh(),
         _ => {}
     }
 }

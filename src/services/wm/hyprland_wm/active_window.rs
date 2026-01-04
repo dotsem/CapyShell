@@ -22,9 +22,9 @@ pub(crate) fn set_active_window(window: Option<WindowEventData>) {
         Some(w) if w.address.to_string() != *current_address => {
             let new_info = ActiveWindowInfo {
                 address: w.address.to_string(),
-                app: w.class,
+                app: w.class.clone(),
                 window_title: w.title,
-                icon_path: None,
+                icon_path: crate::services::apps::get_icon(&w.class),
                 focused_monitor: hyprland_wm::get_active_monitor(),
             };
             *write_guard = new_info;
@@ -52,9 +52,9 @@ pub(crate) fn init_active_window() {
     if let Ok(Some(active_window)) = Client::get_active() {
         let info = ActiveWindowInfo {
             address: active_window.address.to_string(),
-            app: active_window.class,
+            app: active_window.class.clone(),
             window_title: active_window.title,
-            icon_path: None,
+            icon_path: crate::services::apps::get_icon(&active_window.class),
             focused_monitor: hyprland_wm::get_active_monitor(),
         };
         let mut write_guard = ACTIVE_WINDOW.write().unwrap();

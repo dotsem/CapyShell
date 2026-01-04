@@ -4,12 +4,11 @@ use std::thread;
 
 use crate::{
     panels::taskbar::events,
-    services::wm::{WorkspaceState, hyprland_wm::workspaces::get_status},
+    services::wm::hyprland_wm::workspaces::send_workspace_update_to_all_monitors,
 };
 
 pub(crate) mod active_window;
 pub(crate) mod hotplug;
-pub(crate) mod icon;
 pub mod workspaces;
 
 pub(crate) const WORKSPACES_PER_MONITOR: i32 = 10;
@@ -83,4 +82,16 @@ pub fn get_active_monitor() -> String {
         .ok()
         .and_then(|monitors| monitors.iter().find(|m| m.focused).map(|m| m.name.clone()))
         .unwrap_or_default()
+}
+
+/// Trigger a refresh of all workspace UIs.
+/// Called after icon indexing completes to update icons.
+pub(crate) fn trigger_refresh() {
+    info!("Triggering workspace refresh for icon updates...");
+
+    // Clear the icon cache so we pick up newly indexed icons
+    send_workspace_update_to_all_monitors();
+    active_window::init_active_window();
+    let active_window = active_window::get_active_window();
+    events::send_active_window(active_window);
 }
