@@ -9,10 +9,13 @@ export struct ActiveWindowData {
     app: string,
     window_title: string,
     icon: image,
+    active_monitor: bool,
 }
 
 export component ActiveWindow inherits Rectangle {
     in property <ActiveWindowData> activeWindow;
+
+    visible: root.activeWindow.active_monitor; // TODO: make config that dynamically changes this
 
     clip: true;
     width: 400px;

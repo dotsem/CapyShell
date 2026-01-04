@@ -137,7 +137,13 @@ fn main() -> Result<(), Box<dyn Error>> {
                                 media::update_ui(&ui, &data);
                             }
                             TaskbarEvent::ActiveWindow(data) => {
-                                active_window::update_ui(&ui, &data);
+                                //? this is actually the impl to get the active window per monitor instead of shared across all monitors
+                                // if ONLY_SHOW_ACTIVE_WINDOW_ON_ACTIVE_MONITOR
+                                //     && data.focused_monitor != monitor_name_for_events
+                                // {
+                                //     return;
+                                // }
+                                active_window::update_ui(&ui, &data, &monitor_name_for_events);
                             }
                         }
                     }
@@ -179,7 +185,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         // Init active window
         let initial_active_window = hyprland_wm::active_window::get_active_window();
-        active_window::update_ui(&ui, &initial_active_window);
+        active_window::update_ui(&ui, &initial_active_window, &monitor_name);
 
         // Keep timer alive
         std::mem::forget(event_timer);
