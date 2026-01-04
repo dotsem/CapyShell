@@ -10,6 +10,9 @@ tokio = { version = "1", features = ["rt", "sync", "time", "macros"] }
 futures-util = "0.3"
 log = "0.4"
 env_logger = "0.11"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+notify = "6"
 
 # UI
 slint = { version = "1.14.1", features = ["renderer-software"] }

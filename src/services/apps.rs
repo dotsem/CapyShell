@@ -4,12 +4,16 @@
 //! - Icon lookup with comprehensive directory scanning
 //! - Desktop application catalog (for future app launcher)
 
-use log::{debug, info};
+// System info
+use log::{debug, error, info, warn};
+use notify::{RecursiveMode, Watcher};
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::fs;
+use std::io::BufReader;
 use std::path::PathBuf;
 use std::sync::{Arc, OnceLock, RwLock};
 use std::thread;
+use std::time::Duration;
 
 /// Desktop application entry parsed from .desktop files.
 #[derive(Clone, Debug)]
@@ -57,7 +61,14 @@ impl AppCatalog {
 }
 
 fn get_catalog() -> Arc<AppCatalog> {
-    CATALOG.get_or_init(|| Arc::new(AppCatalog::new())).clone()
+    CATALOG
+        .get_or_init(|| {
+            let catalog = AppCatalog::new();
+            // Try to load cache from disk on initialization
+            load_cache_from_disk(&catalog);
+            Arc::new(catalog)
+        })
+        .clone()
 }
 
 /// Start background indexing of apps and icons.
@@ -76,6 +87,33 @@ pub fn start_indexing() {
         // Then scan desktop files
         scan_desktop_files(&catalog);
 
+        // Pre-populate cache with icons for all discovered apps
+        {
+            let apps = catalog.apps.read().unwrap();
+            let wm_classes = catalog.apps_by_wm_class.read().unwrap();
+            let index = catalog.icon_index.read().unwrap();
+            let mut cache = catalog.lookup_cache.write().unwrap();
+
+            info!(
+                "Pre-populating icon cache for {} known app classes...",
+                wm_classes.len()
+            );
+
+            for (class, app_id) in wm_classes.iter() {
+                if !cache.contains_key(class) {
+                    if let Some(app) = apps.get(app_id) {
+                        if let Some(icon_name) = &app.icon_name {
+                            let resolved = resolve_icon_path(&index, icon_name);
+                            cache.insert(class.clone(), resolved);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Save the updated cache to disk
+        save_cache_to_disk(&catalog);
+
         let index = catalog.icon_index.read().unwrap();
         let apps = catalog.apps.read().unwrap();
         info!(
@@ -88,17 +126,143 @@ pub fn start_indexing() {
         drop(index);
         drop(apps);
 
-        // Mark as initialized and clear any stale cache entries
+        // Mark as initialized
         catalog
             .initialized
             .store(true, std::sync::atomic::Ordering::SeqCst);
-        {
-            let mut cache = catalog.lookup_cache.write().unwrap();
-            cache.clear();
-        }
+
+        // Note: we don't clear the cache anymore because we just loaded/saved it.
+        // Any stale entries will be naturally overwritten if looked up again.
 
         // Trigger workspace updates to refresh icons in UI
         crate::services::wm::trigger_refresh();
+
+        // Start file watcher for updates
+        start_watcher(catalog.clone());
+    });
+}
+
+fn get_cache_path() -> PathBuf {
+    let mut path = std::env::var("XDG_CACHE_HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| {
+            let home = std::env::var("HOME").unwrap_or_default();
+            PathBuf::from(home).join(".cache")
+        });
+    path.push("CapyShell");
+    fs::create_dir_all(&path).ok();
+    path.push("icon_cache.json");
+    path
+}
+
+fn load_cache_from_disk(catalog: &AppCatalog) {
+    let path = get_cache_path();
+    if !path.exists() {
+        return;
+    }
+
+    match fs::File::open(&path) {
+        Ok(file) => {
+            let reader = BufReader::new(file);
+            match serde_json::from_reader::<_, HashMap<String, Option<PathBuf>>>(reader) {
+                Ok(cache) => {
+                    let mut lookup_cache = catalog.lookup_cache.write().unwrap();
+                    *lookup_cache = cache;
+                    debug!(
+                        "Loaded icon cache from disk: {} entries",
+                        lookup_cache.len()
+                    );
+                }
+                Err(e) => warn!("Failed to parse icon cache: {}", e),
+            }
+        }
+        Err(e) => warn!("Failed to open icon cache: {}", e),
+    }
+}
+
+fn save_cache_to_disk(catalog: &AppCatalog) {
+    let path = get_cache_path();
+    let cache = catalog.lookup_cache.read().unwrap();
+
+    match fs::File::create(&path) {
+        Ok(file) => {
+            if let Err(e) = serde_json::to_writer(file, &*cache) {
+                warn!("Failed to save icon cache: {}", e);
+            } else {
+                debug!("Saved icon cache to disk");
+            }
+        }
+        Err(e) => warn!("Failed to create icon cache file: {}", e),
+    }
+}
+
+fn start_watcher(catalog: Arc<AppCatalog>) {
+    thread::spawn(move || {
+        let (tx, rx) = std::sync::mpsc::channel();
+
+        let mut watcher = match notify::recommended_watcher(tx) {
+            Ok(w) => w,
+            Err(e) => {
+                error!("Failed to create file watcher: {}", e);
+                return;
+            }
+        };
+
+        // Watch application directories
+        for dir in get_application_directories() {
+            if dir.exists() {
+                if let Err(e) = watcher.watch(&dir, RecursiveMode::Recursive) {
+                    warn!("Failed to watch {:?}: {}", dir, e);
+                }
+            }
+        }
+
+        // Watch icon directories (top level only to avoid too many watches, or selective)
+        // Watching all icon dirs recursively might be too much (inotify limits).
+        // Let's watch the base icon directories.
+        for dir in get_icon_base_directories() {
+            if dir.exists() {
+                // Non-recursive for icon root to save resources, or recursive if needed?
+                // Recursive is risky for /usr/share/icons. Let's start with recursive but be careful.
+                // Actually, let's just watch for desktop file changes for now as that's the main "new app" use case.
+                // Converting icons usually happens with app install.
+                if let Err(e) = watcher.watch(&dir, RecursiveMode::Recursive) {
+                    warn!("Failed to watch {:?}: {}", dir, e);
+                }
+            }
+        }
+
+        // Debounce handling
+
+        loop {
+            match rx.recv() {
+                Ok(res) => {
+                    match res {
+                        Ok(event) => {
+                            debug!("File system event: {:?}", event);
+                            // Debounce: wait for more events to accumulate
+                            thread::sleep(Duration::from_secs(1));
+
+                            // Drain any other events that occurred during the sleep
+                            while let Ok(_) = rx.try_recv() {}
+
+                            info!("Changes detected, refreshing app catalog...");
+                            build_icon_index(&catalog);
+                            scan_desktop_files(&catalog);
+                            save_cache_to_disk(&catalog);
+
+                            // Trigger UI update
+                            crate::services::wm::trigger_refresh();
+                        }
+                        Err(e) => warn!("Watch error: {}", e),
+                    }
+                }
+                Err(e) => {
+                    error!("Watcher channel closed: {}", e);
+                    break;
+                }
+            }
+        }
     });
 }
 
@@ -121,7 +285,8 @@ pub fn get_icon(name: &str) -> Option<PathBuf> {
     }
 
     // Look up in icon index
-    let result = lookup_icon_internal(&catalog, &key);
+    let index = catalog.icon_index.read().unwrap();
+    let result = resolve_icon_path(&index, &key);
 
     // Only cache results after initialization to avoid caching failed lookups
     // when the index hasn't been built yet
@@ -137,9 +302,7 @@ pub fn get_icon(name: &str) -> Option<PathBuf> {
 }
 
 /// Internal icon lookup using the pre-built index.
-fn lookup_icon_internal(catalog: &AppCatalog, name: &str) -> Option<PathBuf> {
-    let index = catalog.icon_index.read().unwrap();
-
+fn resolve_icon_path(index: &HashMap<String, PathBuf>, name: &str) -> Option<PathBuf> {
     // Handle absolute paths
     if name.starts_with('/') {
         let path = PathBuf::from(name);
@@ -546,7 +709,8 @@ fn read_gtkrc_theme(path: &str) -> Option<String> {
 /// Scan desktop files and populate the app catalog.
 fn scan_desktop_files(catalog: &AppCatalog) {
     let dirs = get_application_directories();
-    let mut apps_count = 0;
+    let mut apps_map = HashMap::new();
+    let mut wm_class_map = HashMap::new();
 
     for dir in dirs {
         if !dir.exists() {
@@ -566,25 +730,31 @@ fn scan_desktop_files(catalog: &AppCatalog) {
 
                 // Index by WM class if present
                 if let Some(ref wm_class) = app.startup_wm_class {
-                    let mut by_class = catalog.apps_by_wm_class.write().unwrap();
-                    by_class.insert(wm_class.to_lowercase(), id.clone());
+                    wm_class_map.insert(wm_class.to_lowercase(), id.clone());
                 }
 
                 // Also index by app ID basename
                 let basename = id.trim_end_matches(".desktop").to_lowercase();
-                {
-                    let mut by_class = catalog.apps_by_wm_class.write().unwrap();
-                    by_class.insert(basename, id.clone());
-                }
+                wm_class_map.insert(basename, id.clone());
 
-                let mut apps = catalog.apps.write().unwrap();
-                apps.insert(id, app);
-                apps_count += 1;
+                apps_map.insert(id, app);
             }
         }
     }
 
-    debug!("Indexed {} desktop applications", apps_count);
+    let count = apps_map.len();
+
+    // Update the catalog with the new maps
+    {
+        let mut apps = catalog.apps.write().unwrap();
+        *apps = apps_map;
+    }
+    {
+        let mut by_class = catalog.apps_by_wm_class.write().unwrap();
+        *by_class = wm_class_map;
+    }
+
+    debug!("Indexed {} desktop applications", count);
 }
 
 /// Get list of directories containing .desktop files.
