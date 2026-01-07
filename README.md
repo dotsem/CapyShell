@@ -2,6 +2,9 @@
 
 CapyShell is a modern, minimalistic, and highly customizable window manager for Linux targeting tiling window managers (currently only supports Hyprland).
 
+> [!IMPORTANT]
+> This project is still in alpha phase, new features are still being added. View [the roadmap](https://github.com/dotsem/CapyShell/edit/master/ROADMAP.md) to see which features are in the process of being added for the first release.
+
 ## Features
 
 CapyShell includes multiple "panels" who substitute your taskbar, notification center, settings, etc.
