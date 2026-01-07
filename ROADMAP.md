@@ -44,6 +44,8 @@ after this, a first release will be done
 [ ] -(shared with app launcher) power menu
 [ ] -(shared with app launcher) programming environment launcher -> launch different projects, these projects automatically open the right editor & can automatically start a docker container (if needed)
 [ ] nofitication popup
+- [ ] (desktop widget, only visible on empty desktop) that app bar that gnome & apple have, idk looks cool
+- [ ] (desktop widget, only visible on empty desktop) task planner for today -> all tasks you want to do today & overdue tasks from previous days, so basically a short term task tracker
 
 there will even be more features, but my brain still has to find them...
 if you have a feature request, feel free to leave it as an 'issue' with a feature request tag
