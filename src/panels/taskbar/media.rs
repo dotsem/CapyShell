@@ -3,9 +3,9 @@
 //! Includes position interpolation for smooth progress bar updates.
 
 use crate::panels::taskbar::taskbar::{MediaData, Taskbar};
-use crate::services::media::MprisData as ServiceMprisData;
-use log::{error, info, warn};
-use mpris::PlayerFinder;
+use crate::services::media::{MprisData as ServiceMprisData, send_command};
+use capy_mpris::PlayerCommand;
+use log::warn;
 use slint::{ComponentHandle, Image, Timer, TimerMode};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -37,8 +37,7 @@ struct ServerState {
 struct InterpolationState {
     base_position: f32,
     base_time: Instant,
-    last_title_hash: u64,
-    last_is_playing: bool,
+    last_server_update: Option<Instant>, // Track when we last synced with server
 }
 
 impl Default for InterpolationState {
@@ -46,8 +45,7 @@ impl Default for InterpolationState {
         Self {
             base_position: 0.0,
             base_time: Instant::now(),
-            last_title_hash: 0,
-            last_is_playing: false,
+            last_server_update: None,
         }
     }
 }
@@ -62,6 +60,13 @@ fn hash_string(s: &str) -> u64 {
 
 /// Called by event loop when new MPRIS data arrives from service
 pub fn update_ui(ui: &Taskbar, data: &ServiceMprisData) {
+    // Debug: trace is_playing value
+    log::debug!(
+        "update_ui: is_playing={}, title='{}'",
+        data.is_playing,
+        data.title
+    );
+
     let text_color = slint::Color::from_rgb_u8(255, 255, 255);
 
     // Clear in-memory cache on track change to show placeholder
@@ -148,33 +153,24 @@ fn get_or_keep_cached_image(
 
 /// Attach callbacks and start timers
 pub fn attach_callbacks(ui: &Taskbar) {
-    // Playback controls
+    // Playback controls - now using capy-mpris commands
     ui.on_media_play_pause(|| {
-        media_command(|p| {
-            let _ = p.play_pause();
-        })
+        send_command(PlayerCommand::PlayPause);
     });
+
     ui.on_media_next(|| {
-        media_command(|p| {
-            let _ = p.next();
-        })
+        send_command(PlayerCommand::Next);
     });
+
     ui.on_media_prev(|| {
-        media_command(|p| {
-            let _ = p.previous();
-        })
+        send_command(PlayerCommand::Previous);
     });
+
     ui.on_media_seek(|percent| {
-        media_command(move |player| {
-            if let Ok(metadata) = player.get_metadata() {
-                if let Some(length) = metadata.length() {
-                    let position = length.as_secs_f32() * percent;
-                    if let Some(track_id) = metadata.track_id() {
-                        let _ = player.set_position(track_id, &Duration::from_secs_f32(position));
-                    }
-                }
-            }
-        });
+        // Get current length from server state and calculate position
+        let length_secs = SERVER_STATE.with(|s| s.borrow().length_secs);
+        let position_us = (length_secs * percent * 1_000_000.0) as i64;
+        send_command(PlayerCommand::SetPosition(position_us));
     });
 
     // Interpolation state (local to timer)
@@ -196,36 +192,34 @@ pub fn attach_callbacks(ui: &Taskbar) {
             // Read server state
             let server = SERVER_STATE.with(|s| s.borrow().clone());
 
-            // Check if we need to resync interpolation
+            // ALWAYS sync with server when it has a new update
+            // This ensures server position is always our source of truth
+            let server_updated = server.updated_at;
             let needs_resync = {
                 let interp = interp_clone.borrow();
-                // Track changed
-                server.title_hash != interp.last_title_hash
-                // Playback state changed
-                || server.is_playing != interp.last_is_playing
-                // Server position differs significantly from our base
-                // (this catches seeks and external position changes)
-                || (server.position_secs - interp.base_position).abs() > 1.0
+                // Sync if server has updated since our last sync
+                server_updated != interp.last_server_update
             };
 
             if needs_resync {
                 let mut interp = interp_clone.borrow_mut();
                 interp.base_position = server.position_secs;
                 interp.base_time = Instant::now();
-                interp.last_title_hash = server.title_hash;
-                interp.last_is_playing = server.is_playing;
+                interp.last_server_update = server_updated;
             }
 
             // Calculate interpolated position
             let new_position = {
                 let interp = interp_clone.borrow();
                 if server.is_playing {
+                    // When playing, interpolate from base
                     let elapsed = interp.base_time.elapsed().as_secs_f32();
                     (interp.base_position + elapsed)
                         .min(server.length_secs)
                         .max(0.0)
                 } else {
-                    interp.base_position
+                    // When paused, always use the server's position directly
+                    server.position_secs
                 }
             };
 
@@ -236,187 +230,4 @@ pub fn attach_callbacks(ui: &Taskbar) {
         }
     });
     std::mem::forget(timer);
-
-    // Initial state query with album art loading
-    let ui_weak_init = ui.as_weak();
-    let init_timer = Timer::default();
-    init_timer.start(
-        TimerMode::SingleShot,
-        Duration::from_millis(300),
-        move || {
-            query_and_load_initial_state(&ui_weak_init);
-        },
-    );
-    std::mem::forget(init_timer);
-}
-
-/// Query initial state including album art processing
-fn query_and_load_initial_state(ui_weak: &slint::Weak<Taskbar>) {
-    info!("Querying initial MPRIS state with album art...");
-
-    let finder = match PlayerFinder::new() {
-        Ok(f) => f,
-        Err(e) => {
-            warn!("No PlayerFinder available: {}", e);
-            return;
-        }
-    };
-
-    let player = match finder.find_active() {
-        Ok(p) => p,
-        Err(_) => {
-            info!("No active player found");
-            return;
-        }
-    };
-
-    let metadata = match player.get_metadata() {
-        Ok(m) => m,
-        Err(e) => {
-            warn!("Failed to get metadata: {}", e);
-            return;
-        }
-    };
-
-    let title = metadata.title().unwrap_or("Unknown").to_string();
-    let artists = metadata.artists().map(|a| a.join(", ")).unwrap_or_default();
-    let art_url = metadata.art_url().unwrap_or("");
-    let length = metadata.length().unwrap_or(Duration::ZERO);
-    let is_playing = player
-        .get_playback_status()
-        .map(|s| s == mpris::PlaybackStatus::Playing)
-        .unwrap_or(false);
-    let position = player.get_position().unwrap_or(Duration::ZERO);
-
-    // Process album art if available
-    let (album_art, blurred_art) = if !art_url.is_empty() {
-        load_album_art_sync(art_url)
-    } else {
-        (Image::default(), Image::default())
-    };
-
-    // Update server state
-    let title_hash = hash_string(&title);
-    SERVER_STATE.with(|s| {
-        let mut state = s.borrow_mut();
-        state.position_secs = position.as_secs_f32();
-        state.is_playing = is_playing;
-        state.length_secs = length.as_secs_f32();
-        state.title_hash = title_hash;
-        state.updated_at = Some(Instant::now());
-    });
-
-    if let Some(ui) = ui_weak.upgrade() {
-        let text_color = slint::Color::from_rgb_u8(255, 255, 255);
-        let media_data = MediaData {
-            title: title.into(),
-            artist: artists.into(),
-            album_art,
-            blurred_art,
-            length_secs: length.as_secs_f32(),
-            position_secs: position.as_secs_f32(),
-            is_playing,
-            has_media: true,
-            text_color,
-        };
-        ui.set_media_data(media_data);
-        info!("Initial state with art loaded");
-    }
-}
-
-/// Load album art synchronously (for initial load)
-fn load_album_art_sync(url: &str) -> (Image, Image) {
-    use sha2::{Digest, Sha256};
-    use std::fs;
-    use std::io::Read;
-
-    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-    let cache_dir = std::path::PathBuf::from(home).join(".cache/CapyShell/thumbs");
-    let _ = fs::create_dir_all(&cache_dir);
-
-    let mut hasher = Sha256::new();
-    hasher.update(url.as_bytes());
-    let hash = hex::encode(hasher.finalize());
-
-    let original_path = cache_dir.join(format!("{}.png", hash));
-    let blur_path = cache_dir.join(format!("{}_blur.png", hash));
-
-    // Try loading cached images first
-    if original_path.exists() && blur_path.exists() {
-        let art = Image::load_from_path(&original_path).ok();
-        let blur = Image::load_from_path(&blur_path).ok();
-        if let (Some(a), Some(b)) = (art, blur) {
-            // Cache in thread-local
-            CACHED_ART_PATH.with(|p| *p.borrow_mut() = original_path.to_string_lossy().to_string());
-            CACHED_ART.with(|i| *i.borrow_mut() = a.clone());
-            CACHED_BLUR_PATH.with(|p| *p.borrow_mut() = blur_path.to_string_lossy().to_string());
-            CACHED_BLUR.with(|i| *i.borrow_mut() = b.clone());
-            return (a, b);
-        }
-    }
-
-    // Need to download and process
-    let img_data = if url.starts_with("file://") {
-        let path = url.strip_prefix("file://").unwrap();
-        match fs::read(path) {
-            Ok(d) => d,
-            Err(_) => return (Image::default(), Image::default()),
-        }
-    } else if url.starts_with("http") {
-        match ureq::get(url).call() {
-            Ok(response) => {
-                let mut bytes = Vec::new();
-                if response.into_reader().read_to_end(&mut bytes).is_err() {
-                    return (Image::default(), Image::default());
-                }
-                bytes
-            }
-            Err(e) => {
-                warn!("Failed to download: {}", e);
-                return (Image::default(), Image::default());
-            }
-        }
-    } else {
-        return (Image::default(), Image::default());
-    };
-
-    let img = match image::load_from_memory(&img_data) {
-        Ok(i) => i,
-        Err(_) => return (Image::default(), Image::default()),
-    };
-
-    use image::imageops::FilterType;
-    let resized = img.resize_to_fill(256, 256, FilterType::CatmullRom);
-    let _ = resized.save(&original_path);
-
-    let blur_base = img.resize_to_fill(128, 128, FilterType::Triangle);
-    let blurred = blur_base.blur(15.0);
-    let _ = blurred.save(&blur_path);
-
-    let art = Image::load_from_path(&original_path).unwrap_or_default();
-    let blur = Image::load_from_path(&blur_path).unwrap_or_default();
-
-    // Cache
-    CACHED_ART_PATH.with(|p| *p.borrow_mut() = original_path.to_string_lossy().to_string());
-    CACHED_ART.with(|i| *i.borrow_mut() = art.clone());
-    CACHED_BLUR_PATH.with(|p| *p.borrow_mut() = blur_path.to_string_lossy().to_string());
-    CACHED_BLUR.with(|i| *i.borrow_mut() = blur.clone());
-
-    (art, blur)
-}
-
-fn media_command<F>(action: F)
-where
-    F: FnOnce(&mpris::Player),
-{
-    match PlayerFinder::new() {
-        Ok(finder) => {
-            if let Ok(player) = finder.find_active() {
-                action(&player);
-            } else {
-                warn!("No active player");
-            }
-        }
-        Err(e) => error!("PlayerFinder error: {}", e),
-    }
 }
