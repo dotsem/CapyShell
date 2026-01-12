@@ -270,7 +270,7 @@ fn process_album_art(url: &str, cache_dir: &Path) -> Option<(String, String)> {
     resized.save(&original_path).ok()?;
 
     let blur_base = img.resize_to_fill(128, 128, FilterType::Triangle);
-    let blurred = blur_base.blur(15.0);
+    let blurred = blur_base.blur(4.0);
     blurred.save(&blur_path).ok()?;
 
     Some((

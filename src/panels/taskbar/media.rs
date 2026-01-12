@@ -5,7 +5,7 @@
 use crate::panels::taskbar::taskbar::{MediaData, Taskbar};
 use crate::services::media::{MprisData as ServiceMprisData, send_command};
 use capy_mpris::PlayerCommand;
-use log::warn;
+use log::{debug, warn};
 use slint::{ComponentHandle, Image, Timer, TimerMode};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -61,10 +61,9 @@ fn hash_string(s: &str) -> u64 {
 /// Called by event loop when new MPRIS data arrives from service
 pub fn update_ui(ui: &Taskbar, data: &ServiceMprisData) {
     // Debug: trace is_playing value
-    log::debug!(
+    debug!(
         "update_ui: is_playing={}, title='{}'",
-        data.is_playing,
-        data.title
+        data.is_playing, data.title
     );
 
     let text_color = slint::Color::from_rgb_u8(255, 255, 255);
