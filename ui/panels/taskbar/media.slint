@@ -12,6 +12,7 @@ import { MediaData } from "media/mediaDataStruct.slint";
 import { StateMetadata } from "media/stateMetadata.slint";
 import { StateControls } from "media/stateControls.slint";
 import { StateNormal } from "media/stateNormal.slint";
+import { Visualizer } from "../../components/visualizer.slint";
 
 
 
@@ -28,7 +29,8 @@ export component MediaWidget inherits Rectangle {
     border-radius: 8px;
 
     property <duration> anim-duration: 200ms;
-    property <int> bar-count: 12; // TODO: make configurable 
+    property <int> bar-count: 24; // TODO: make configurable 
+    property <angle> phase: 60deg;
     
     // Bind properties to TouchAreas defined below
     property <bool> is-hovering-art: art_area.has-hover;
@@ -71,34 +73,13 @@ export component MediaWidget inherits Rectangle {
     }
 
     // === Visualizer (Simple Animated Bars) ===
-    // CRITICAL: animation-tick() forces continuous 60fps redraws
-    // We must guard it with is-playing to prevent Skia texture accumulation when paused
-    HorizontalLayout {
-        x: 48px;
-        y: 0;
-        width: parent.width - 48px;
-        height: 100%;
-        spacing: 2px;
-        padding: 4px;
-        opacity: data.is-playing ? 1 : 0;
-        animate opacity { duration: 1s; }
-        for i in bar-count: Rectangle {
-            width: (parent.width / bar-count);
-            height: 100%;
-            VerticalLayout {
-                alignment: end;
-                Rectangle {
-                    // Draws a sine wave animation
-                    // IMPORTANT!: only use animation-tick() when actually playing to prevent constant Skia texture reallocations
-                    // causing memory leaks
-            
-                    height: data.is-playing ? 8px + 20px * (0.5 + 0.5 * sin((animation-tick() / 5ms) * 1deg + (i * 30deg))) : 14px;
-                    background: data.text-color;
-                    opacity: 0.4;
-                    border-radius: 2px;
-                }
-            }
-        }
+    
+   Visualizer {
+        is-playing: root.data.is_playing;
+        bar-count: root.bar-count;
+        parent-width: parent.width;
+        text-color: root.data.text_color;
+        phase: root.phase;
     }
 
     // === Layout ===
