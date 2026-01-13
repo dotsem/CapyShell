@@ -16,7 +16,14 @@ export component StateMetadata inherits VerticalLayout {
     Text {
         text: root.data.artist;
         color: root.data.text-color;
-        font-size: 12px;
+        font-size: 8px;
+        overflow: elide;
+    }
+
+    Text {
+        text: root.data.album;
+        color: root.data.text-color;
+        font-size: 8px;
         overflow: elide;
     }
 }

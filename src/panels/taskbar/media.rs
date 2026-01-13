@@ -104,6 +104,7 @@ pub fn update_ui(ui: &Taskbar, data: &ServiceMprisData) {
     let media_data = MediaData {
         title: data.title.clone(),
         artist: data.artist.clone(),
+        album: data.album.clone(),
         album_art,
         blurred_art,
         length_secs: data.length_secs,

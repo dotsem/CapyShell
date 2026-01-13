@@ -23,6 +23,7 @@ use tokio::sync::mpsc;
 pub struct MprisData {
     pub title: SharedString,
     pub artist: SharedString,
+    pub album: SharedString,
     pub album_art_path: SharedString,
     pub blurred_art_path: SharedString,
     pub length_secs: f32,
@@ -126,6 +127,7 @@ async fn run_mpris_loop() {
         let immediate_data = MprisData {
             title: data.title.clone().into(),
             artist: data.artist.clone().into(),
+            album: data.album.clone().into(),
             album_art_path: cached_art.clone().into(),
             blurred_art_path: cached_blur.clone().into(),
             length_secs: data.length_secs(),
@@ -173,6 +175,7 @@ async fn run_mpris_loop() {
                     let data_with_art = MprisData {
                         title: title.into(),
                         artist: artist.into(),
+                        album: data.album.clone().into(),
                         album_art_path: art_path.into(),
                         blurred_art_path: blur_path.into(),
                         length_secs,
