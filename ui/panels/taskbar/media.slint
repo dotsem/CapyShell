@@ -142,6 +142,7 @@ export component MediaWidget inherits Rectangle {
             clip: true;
             StateMetadata {
                 data: root.data;
+                active: root.is-hovering-art;
                 opacity: root.is-hovering-art ? 1 : 0;
                 animate opacity {
                     duration: 200ms;
