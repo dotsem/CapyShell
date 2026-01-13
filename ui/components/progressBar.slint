@@ -1,6 +1,7 @@
 
 export component ProgressBar inherits Rectangle {
-    in property <color> text-color;
+    in property <color> progressed-color;
+    in property <color> background-color;
     in property <float> position_secs;
     in property <float> length_secs;
     in property <bool> intractable: true;
@@ -9,15 +10,26 @@ export component ProgressBar inherits Rectangle {
 
     height: 4px;
     width: 100%;
-    background: root.text-color.with-alpha(0.3);
+    background: root.background-color;
     border-radius: 2px;
     y: 8px;
     Rectangle {
         x: 0;
         width: parent.width * (root.position_secs / max(1.0, root.length_secs));
         height: 100%;
-        background: root.text-color;
+        background: root.progressed-color;
         border-radius: 2px;
+    }
+
+    Rectangle {
+        property <length> diameter: parent.height + 4px;
+
+        x: parent.width * (root.position_secs / max(1.0, root.length_secs)) - diameter / 2;
+        width: diameter;
+        height: diameter;
+        background: root.progressed-color;
+        border-radius: 2px;
+        visible: intractable;
     }
 
     touch := TouchArea {

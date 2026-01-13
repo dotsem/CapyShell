@@ -1,8 +1,11 @@
 
 
-import { ProgressBar } from "progressBar.slint";
+import { ProgressBar } from "../../../components/progressBar.slint";
 import { MediaData } from "mediaDataStruct.slint";
 import { TimeFormatting } from "timeFormatting.slint";
+import {
+    MaterialPalette,
+} from "../../../../material-1.0/ui/styling/material_palette.slint";
 
 export component StateNormal inherits VerticalLayout {
     in property <MediaData> data;
@@ -31,7 +34,8 @@ export component StateNormal inherits VerticalLayout {
 
         ProgressBar {
             intractable: false;
-            text-color: root.data.text-color;
+            background-color: root.data.text-color.with-alpha(0.3);
+            progressed-color: MaterialPalette.primary;
             position_secs: root.data.position_secs;
             length_secs: root.data.length_secs;
         }
