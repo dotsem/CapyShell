@@ -20,14 +20,15 @@ export component MediaWidget inherits Rectangle {
     callback play-pause();
     callback next();
     callback prev();
-    callback seek(float); // percent 0..1
+    callback seek(float); // between 0 & 1
 
-    width: 250px; // Default
+    width: 250px;
     height: 48px;
     clip: true;
-    border-radius: 8px; // Slight rounding
+    border-radius: 8px;
 
     property <duration> anim-duration: 200ms;
+    property <int> bar-count: 12; // TODO: make configurable 
     
     // Bind properties to TouchAreas defined below
     property <bool> is-hovering-art: art_area.has-hover;
@@ -71,29 +72,26 @@ export component MediaWidget inherits Rectangle {
 
     // === Visualizer (Simple Animated Bars) ===
     HorizontalLayout {
-        x: 0;
+        x: 48px;
         y: 0;
-        width: 100%;
+        width: parent.width - 48px;
         height: 100%;
         spacing: 2px;
         padding: 4px;
-        opacity: (data.is-playing && !root.is-hovering-widget && !root.is-hovering-art) ? 0.3 : 0.0;
-        animate opacity { duration: 200ms; }
-        for i in 12: Rectangle {
-            horizontal-stretch: 1;
+        for i in bar-count: Rectangle {
+            width: (parent.width / bar-count);
             height: 100%;
             VerticalLayout {
                 alignment: end;
                 Rectangle {
-                    width: 100%;
                     // Use animation-tick directly in radians-like degrees
                     // Each bar has different phase offset (i * 30deg)
                     // Speed controlled by dividing animation-tick
-                    height: 8px + 20px * (0.5 + 0.5 * sin((animation-tick() / 100ms) * 1deg + (i * 30deg)));
+                    height: 8px + 20px * (0.5 + 0.5 * sin((animation-tick() / 5ms) * 1deg + (i * 30deg)));
                     background: data.text-color;
-                    opacity: 0.6;
+                    opacity: 0.4;
                     border-radius: 2px;
-                    animate height { duration: 50ms; }
+                    // animate height { duration: 10ms; }
                 }
             }
         }
