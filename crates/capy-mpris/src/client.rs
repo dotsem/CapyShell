@@ -1,9 +1,9 @@
 //! MPRIS client implementation
 //!
-//! Single D-Bus connection matching the working Dart implementation pattern:
-//! - Listen to propertiesChanged as a TRIGGER only
+//! Single D-Bus connection with proper cleanup:
+//! - Listen to property signals as triggers
 //! - When triggered, fetch ALL properties fresh
-//! - Simple, reliable, no complex message parsing
+//! - Explicit stream cleanup on session exit
 
 use crate::error::MprisError;
 use crate::sources::{PlayerSource, SourcePreference};
@@ -217,24 +217,70 @@ where
     tokio::time::sleep(std::time::Duration::from_millis(500)).await;
     fetch_and_send_state(bus_name, &proxy, on_update).await;
 
+    let result = run_session_loop(
+        connection,
+        bus_name,
+        &proxy,
+        &mut status_stream,
+        &mut metadata_stream,
+        &mut seeked_stream,
+        cmd_rx,
+        preference,
+        config_path,
+        on_update,
+        on_sources_changed,
+        active_bus,
+    )
+    .await;
+
+    // CRITICAL: Explicit cleanup to prevent subscription accumulation
+    // Drop streams explicitly before returning
+    drop(status_stream);
+    drop(metadata_stream);
+    drop(seeked_stream);
+    // Yield to allow async cleanup tasks to run
+    tokio::task::yield_now().await;
+
+    result
+}
+
+/// Inner session loop - separated for cleaner stream cleanup
+async fn run_session_loop<F, G>(
+    connection: &Connection,
+    bus_name: &str,
+    proxy: &MprisPlayerProxy<'_>,
+    status_stream: &mut zbus::PropertyStream<'_, String>,
+    metadata_stream: &mut zbus::PropertyStream<'_, HashMap<String, OwnedValue>>,
+    seeked_stream: &mut SeekedStream<'_>,
+    cmd_rx: &mut mpsc::Receiver<PlayerCommand>,
+    preference: &mut SourcePreference,
+    config_path: &Option<PathBuf>,
+    on_update: &Arc<F>,
+    on_sources_changed: &Arc<G>,
+    active_bus: &mut Option<String>,
+) -> Result<(), MprisError>
+where
+    F: Fn(MprisData) + Send + Sync + 'static,
+    G: Fn(Vec<PlayerSource>, Option<String>) + Send + Sync + 'static,
+{
     loop {
         tokio::select! {
             // PlaybackStatus changed
             Some(_) = status_stream.next() => {
                 debug!("PlaybackStatus changed signal received");
-                fetch_and_send_state(bus_name, &proxy, on_update).await;
+                fetch_and_send_state(bus_name, proxy, on_update).await;
             }
 
             // Metadata changed (track change)
             Some(_) = metadata_stream.next() => {
                 debug!("Metadata changed signal received");
-                fetch_and_send_state(bus_name, &proxy, on_update).await;
+                fetch_and_send_state(bus_name, proxy, on_update).await;
             }
 
             // Seeked signal
             Some(_) = seeked_stream.next() => {
                 debug!("Seeked signal received");
-                fetch_and_send_state(bus_name, &proxy, on_update).await;
+                fetch_and_send_state(bus_name, proxy, on_update).await;
             }
 
             // Commands from UI
@@ -245,28 +291,28 @@ where
                         let _ = proxy.play_pause().await;
                         // Signal should trigger update, but add small delay + poll as backup
                         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-                        fetch_and_send_state(bus_name, &proxy, on_update).await;
+                        fetch_and_send_state(bus_name, proxy, on_update).await;
                     }
                     PlayerCommand::Next => {
                         debug!("Sending Next command");
                         let _ = proxy.next().await;
                         // Spotify may not emit signal when paused - poll after delay
                         tokio::time::sleep(std::time::Duration::from_millis(200)).await;
-                        fetch_and_send_state(bus_name, &proxy, on_update).await;
+                        fetch_and_send_state(bus_name, proxy, on_update).await;
                     }
                     PlayerCommand::Previous => {
                         debug!("Sending Previous command");
                         let _ = proxy.previous().await;
                         // Spotify may not emit signal when paused - poll after delay
                         tokio::time::sleep(std::time::Duration::from_millis(200)).await;
-                        fetch_and_send_state(bus_name, &proxy, on_update).await;
+                        fetch_and_send_state(bus_name, proxy, on_update).await;
                     }
                     PlayerCommand::Seek(offset) => {
                         debug!("Sending Seek command: offset={}us", offset);
                         let _ = proxy.seek(offset).await;
                         // Seeked signal should fire, but poll as backup
                         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-                        fetch_and_send_state(bus_name, &proxy, on_update).await;
+                        fetch_and_send_state(bus_name, proxy, on_update).await;
                     }
                     PlayerCommand::SetPosition(position) => {
                         debug!("Sending SetPosition command: position={}us", position);
@@ -276,7 +322,7 @@ where
                                     let _ = proxy.set_position(&path, position).await;
                                     // Seeked signal should fire, but poll as backup
                                     tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-                                    fetch_and_send_state(bus_name, &proxy, on_update).await;
+                                    fetch_and_send_state(bus_name, proxy, on_update).await;
                                 }
                             }
                         }
@@ -305,8 +351,8 @@ where
                 }
             }
 
-            // Timeout - check if player still exists
-            _ = tokio::time::sleep(std::time::Duration::from_secs(5)) => {
+            // Timeout - check if player still exists (increased to 30s to reduce churn)
+            _ = tokio::time::sleep(std::time::Duration::from_secs(30)) => {
                 // Ping the player to check if still alive
                 if proxy.playback_status().await.is_err() {
                     warn!("Player {} no longer responding", bus_name);
@@ -318,6 +364,7 @@ where
 }
 
 /// Fetch all properties and send update - like Dart's getPlayerData()
+#[inline]
 async fn fetch_and_send_state<F>(bus_name: &str, proxy: &MprisPlayerProxy<'_>, on_update: &Arc<F>)
 where
     F: Fn(MprisData) + Send + Sync + 'static,
@@ -414,6 +461,7 @@ async fn discover_sources(connection: &Connection) -> Result<Vec<PlayerSource>, 
 
 // ============ Metadata extraction helpers ============
 
+#[inline]
 fn extract_string(map: &HashMap<String, OwnedValue>, key: &str) -> Option<String> {
     use std::ops::Deref;
     use zbus::zvariant::Value;
@@ -424,6 +472,7 @@ fn extract_string(map: &HashMap<String, OwnedValue>, key: &str) -> Option<String
     })
 }
 
+#[inline]
 fn extract_i64(map: &HashMap<String, OwnedValue>, key: &str) -> Option<i64> {
     use std::ops::Deref;
     use zbus::zvariant::Value;
@@ -437,6 +486,7 @@ fn extract_i64(map: &HashMap<String, OwnedValue>, key: &str) -> Option<i64> {
     })
 }
 
+#[inline]
 fn extract_str_array(map: &HashMap<String, OwnedValue>, key: &str) -> Option<String> {
     use std::ops::Deref;
     use zbus::zvariant::Value;
@@ -460,6 +510,7 @@ fn extract_str_array(map: &HashMap<String, OwnedValue>, key: &str) -> Option<Str
     })
 }
 
+#[inline]
 fn extract_track_id(map: &HashMap<String, OwnedValue>) -> Option<String> {
     use std::ops::Deref;
     use zbus::zvariant::Value;

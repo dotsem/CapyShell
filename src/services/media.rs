@@ -150,6 +150,7 @@ async fn run_mpris_loop() {
             let art_url = data.art_url.clone();
             let title = data.title.clone();
             let artist = data.artist.clone();
+            let album = data.album.clone();
             let length_secs = data.length_secs();
             let position_secs = data.position_us as f32 / 1_000_000.0;
             let is_playing = data.status.is_playing();
@@ -158,7 +159,7 @@ async fn run_mpris_loop() {
             let cache_dir_clone = cache_dir_for_update.clone();
             let cached_art_paths_clone = cached_art_paths.clone();
 
-            std::thread::spawn(move || {
+            tokio::task::spawn_blocking(move || {
                 if GENERATION.load(Ordering::SeqCst) != generation {
                     return;
                 }
@@ -175,7 +176,7 @@ async fn run_mpris_loop() {
                     let data_with_art = MprisData {
                         title: title.into(),
                         artist: artist.into(),
-                        album: data.album.clone().into(),
+                        album: album.into(),
                         album_art_path: art_path.into(),
                         blurred_art_path: blur_path.into(),
                         length_secs,

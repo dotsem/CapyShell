@@ -176,9 +176,13 @@ pub fn attach_callbacks(ui: &Taskbar) {
     // Interpolation state (local to timer)
     let interp_state = Rc::new(RefCell::new(InterpolationState::default()));
 
+    // Track last rendered position to avoid redundant updates
+    let last_rendered_position = Rc::new(RefCell::new(0.0f32));
+
     // Position interpolation timer (100ms)
     let ui_weak = ui.as_weak();
     let interp_clone = interp_state.clone();
+    let last_pos_clone = last_rendered_position.clone();
 
     let timer = Timer::default();
     timer.start(TimerMode::Repeated, Duration::from_millis(100), move || {
@@ -223,10 +227,17 @@ pub fn attach_callbacks(ui: &Taskbar) {
                 }
             };
 
-            // Update UI
-            let mut updated_data = current_data;
-            updated_data.position_secs = new_position;
-            ui.set_media_data(updated_data);
+            // Only update UI if position actually changed
+            let last_pos = *last_pos_clone.borrow();
+            let position_changed = (new_position - last_pos).abs() > 0.01; // ~10ms threshold
+
+            if position_changed {
+                *last_pos_clone.borrow_mut() = new_position;
+
+                let mut updated_data = current_data;
+                updated_data.position_secs = new_position;
+                ui.set_media_data(updated_data);
+            }
         }
     });
     std::mem::forget(timer);
