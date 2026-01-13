@@ -1,3 +1,6 @@
+[workspace]
+members = [".", "crates/capy-mpris"]
+
 [package]
 name = "CapyShell"
 version = "0.1.0"
@@ -15,7 +18,7 @@ serde_json = "1"
 notify = "6"
 
 # UI
-slint = { version = "1.14.1", features = ["renderer-software"] }
+slint = { version = "1.14.1", features = ["renderer-skia"] }
 # spell-framework = { git = "https://github.com/dotsem/Spell" }
 spell-framework = { path = "../Spell/spell-framework" }
 
@@ -27,7 +30,7 @@ libpulse-binding = "2.28"
 nmrs = "1.1"
 bluer = { version = "0.17", features = ["bluetoothd"] }
 walkdir = "2"
-mpris = "2.0"
+capy-mpris = { path = "crates/capy-mpris" }
 image = "0.24"
 sha2 = "0.10"
 hex = "0.4"
@@ -36,7 +39,6 @@ ureq = "2"
 # MSG
 zbus = "4"
 crossbeam-channel = "0.5"
-
 [build-dependencies]
 slint-build = "1.14.1"
 
@@ -48,6 +50,6 @@ i-slint-renderer-skia = { git = "https://github.com/slint-ui/slint" }
 # spell-framework = { git = "https://github.com/VimYoung/Spell" }
 
 [profile.release]
-lto = true
-# codegen-units = 1 # slower compile time
+# lto = "thin"
+codegen-units = 16
 opt-level = 3

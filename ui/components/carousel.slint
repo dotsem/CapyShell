@@ -1,0 +1,27 @@
+
+
+// Currently only supports x axis scrolling
+export component Carousel {
+    in property <duration> ramp;
+    in property <duration> hold;
+    in property <bool> active;
+    in property <length> parent-width;
+
+    function getCarouselX() -> float {
+        // periodic trapezoidal wave
+        let t = animation-tick();
+
+        let Period = root.ramp * 2 + root.hold * 2;
+        let x = mod(t, Period);
+
+        let val_a = (x - root.hold) / root.ramp;
+        let val_b = (Period - x) / root.ramp;
+        return max(0, min(1, min(val_a, val_b)));
+    }
+
+    carousel := HorizontalLayout {
+        property <length> scroll-range: max(0px, self.preferred-width - parent-width);
+        x: root.active ? -root.getCarouselX() * scroll-range : 0px;
+        @children
+    }
+}
