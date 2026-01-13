@@ -12,7 +12,7 @@ The first release will include a taskbar and a basic app launcher. It is not pla
 - [x] add **active window**
 - [x] fix memory leak for media player
 - [ ] **distribution icon** on left side (will later open a menu)
-- [ ] fix music player animated playing bars
+- [x] fix music player animated playing bars
 - [ ] split up the project in different crates
 - [ ] improve icon & app finding crate
 - [ ] create crate for shared window manager communication -> 1 crate communicating with the current window manager. This crate will then share generalized data to each crate that asks for information. This means that most of the window manager information is only fetched once and updated effeciently
