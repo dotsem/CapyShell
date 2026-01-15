@@ -48,5 +48,13 @@ after this, a first release will be done
 - [ ] (desktop widget, only visible on empty desktop) that app bar that gnome & apple have, idk looks cool
 - [ ] (desktop widget, only visible on empty desktop) task planner for today -> all tasks you want to do today & overdue tasks from previous days, so basically a short term task tracker
 
+### features for app launcher
+
+- [ ] launch urls in browsers -> choose browser & set url -> url will open in new browser
+- [ ] edit application settings like custom run args, ...
+- [ ] hide applications that you don't want to clutter your app launcher with
+- [ ] favorite apps
+- [ ] fuzzy finding
+
 there will even be more features, but my brain still has to find them...
 if you have a feature request, feel free to leave it as an 'issue' with a feature request tag
