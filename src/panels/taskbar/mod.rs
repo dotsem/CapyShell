@@ -8,6 +8,7 @@ pub mod active_window;
 pub mod battery;
 pub mod bluetooth;
 pub mod clock;
+pub mod distro_icon;
 pub mod events;
 pub mod media;
 pub mod network;

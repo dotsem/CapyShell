@@ -167,6 +167,10 @@ pub struct StaticInfo {
     pub kernel: String,
     /// OS version (e.g. "22.04 LTS")
     pub os_ver: String,
+    /// long OS version (e.g. "Linux (Ubuntu 24.04)")
+    pub long_os_ver: String,
+    /// distribution id (e.g. "arch", "ubuntu", "fedora")
+    pub distribution_id: String,
     /// Hostname (e.g. "my-pc")
     pub host: String,
     /// Total memory in bytes
@@ -186,6 +190,8 @@ pub fn get_static_info() -> &'static StaticInfo {
             name: System::name().unwrap_or_else(|| "Unknown".into()),
             kernel: System::kernel_version().unwrap_or_else(|| "Unknown".into()),
             os_ver: System::os_version().unwrap_or_else(|| "Unknown".into()),
+            long_os_ver: System::long_os_version().unwrap_or_else(|| "Unknown".into()),
+            distribution_id: System::distribution_id(),
             host: System::host_name().unwrap_or_else(|| "Unknown".into()),
             total_mem: sys.total_memory(),
             cpu_count: sys.physical_core_count().unwrap_or(0),

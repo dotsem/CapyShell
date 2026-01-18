@@ -23,6 +23,7 @@ import {
     WorkspaceState,
 } from "workspaces.slint";
 import { ActiveWindow, ActiveWindowData } from "activeWindow.slint";
+import { DistroIcon } from "distroIcon.slint";
 
 export { WorkspaceData, WorkspaceState, MediaData, ActiveWindowData }
 
@@ -52,6 +53,7 @@ export component Taskbar inherits Window {
     in-out property <bool> has-bluetooth: false;
 
     in-out property <image> appIcon;
+    in-out property <image> distro-icon;
 
     // Workspaces
     in-out property <[WorkspaceData]> workspaces: [];
@@ -67,6 +69,9 @@ export component Taskbar inherits Window {
     callback media-next();
     callback media-prev();
     callback media-seek(float);
+
+    callback open-left-menu();
+    callback open-right-menu();
 
     callback update-clock();
     Timer {
@@ -89,14 +94,22 @@ export component Taskbar inherits Window {
     }
 
     HorizontalLayout {
-        padding-left: 8px;
-        padding-right: 8px;
+        padding-left: 4px;
+        padding-right: 4px;
         spacing: 8px;
 
         // === LEFT SECTION ===
         HorizontalLayout {
             horizontal-stretch: 1;
             alignment: start;
+            spacing: 8px;
+
+            DistroIcon {
+                distro-icon: root.distro-icon;
+                clicked => {
+                    root.open-left-menu();
+                }
+            }
 
             VerticalLayout {
                 alignment: center;

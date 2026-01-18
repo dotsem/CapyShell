@@ -1,0 +1,26 @@
+
+import {
+    BaseButton,
+} from "../../../material-1.0/ui/components/base_button.slint";
+import {
+    MaterialPalette,
+} from "../../../material-1.0/ui/styling/material_palette.slint";
+export component DistroIcon {
+    in property <image> distro-icon;
+
+    callback clicked();
+
+    BaseButton {
+        width: 48px;
+        height: 48px;
+        icon: root.distro-icon;
+        color: MaterialPalette.on_surface;
+        icon_size: 40px;
+        button_horizontal_padding: 4px;
+        button_vertical_padding: 4px;
+        border_radius: 24px;
+        clicked => {
+            root.clicked();
+        }
+    }
+}

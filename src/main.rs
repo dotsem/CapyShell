@@ -7,7 +7,7 @@ mod functions;
 mod panels;
 mod services;
 
-use crate::panels::taskbar::active_window;
+use crate::panels::taskbar::{active_window, distro_icon};
 use crate::services::wm::hyprland_wm;
 use hyprland::data::{Monitor, Monitors};
 use hyprland::shared::HyprData;
@@ -157,6 +157,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         // Initial state
         clock::update_clock(&ui);
+
+        distro_icon::update_distro_icon(&ui);
 
         // Battery setup (only if battery is present)
         ui.set_has_battery(service_status.has_battery);
