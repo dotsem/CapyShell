@@ -8,6 +8,7 @@ use crate::services::battery::BatteryStatus;
 use crate::services::bluetooth::BluetoothStatus;
 use crate::services::media::MprisData;
 use crate::services::network::NetworkStatus;
+use crate::services::system_info::SystemStatus;
 use crate::services::volume::VolumeStatus;
 use crate::services::wm::WorkspacesStatus;
 use crate::services::wm::types::ActiveWindowInfo;
@@ -26,6 +27,7 @@ pub enum TaskbarEvent {
     Workspaces(WorkspacesStatus),
     Mpris(Box<crate::services::media::MprisData>), // Boxed to keep enum size small
     ActiveWindow(ActiveWindowInfo),
+    SystemStatus(SystemStatus),
 }
 
 impl TaskbarEvent {
@@ -40,6 +42,7 @@ impl TaskbarEvent {
             TaskbarEvent::Workspaces(_) => 4,
             TaskbarEvent::Mpris(_) => 5,
             TaskbarEvent::ActiveWindow(_) => 6,
+            TaskbarEvent::SystemStatus(_) => 7,
         }
     }
 }

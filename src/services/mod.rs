@@ -15,6 +15,7 @@ pub mod battery;
 pub mod bluetooth;
 pub mod media;
 pub mod network;
+pub mod system_info;
 pub mod volume;
 pub mod wm;
 

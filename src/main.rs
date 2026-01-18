@@ -3,6 +3,7 @@
 //! Single-process multi-window architecture with restart-on-hotplug.
 
 mod event_bus;
+mod functions;
 mod panels;
 mod services;
 
@@ -144,6 +145,9 @@ fn main() -> Result<(), Box<dyn Error>> {
                                 //     return;
                                 // }
                                 active_window::update_ui(&ui, &data, &monitor_name_for_events);
+                            }
+                            TaskbarEvent::SystemStatus(_data) => {
+                                // TODO: Implement UI update for system status
                             }
                         }
                     }
