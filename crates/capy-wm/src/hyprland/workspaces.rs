@@ -37,9 +37,15 @@ pub fn get_status(monitor_name: &str) -> WorkspacesStatus {
         let ws_data = all_workspaces.iter().find(|ws| ws.id == ws_id);
         let has_windows = ws_data.map(|ws| ws.windows > 0).unwrap_or(false);
 
-        let client_on_ws = all_clients.iter().find(|c| c.workspace.id == ws_id);
+        let clients_on_ws: Vec<_> = all_clients
+            .iter()
+            .filter(|c| c.workspace.id == ws_id)
+            .collect();
+        let has_urgent = clients_on_ws
+            .iter()
+            .any(|c| super::is_urgent(&c.address.to_string()));
 
-        let (app_class, icon_path) = if let Some(client) = client_on_ws {
+        let (app_class, icon_path) = if let Some(client) = clients_on_ws.first() {
             let class = client.class.clone();
             let icon = resolve_icon(&class);
             (Some(class), icon)
@@ -53,6 +59,8 @@ pub fn get_status(monitor_name: &str) -> WorkspacesStatus {
             } else {
                 WorkspaceState::Visible
             }
+        } else if has_urgent {
+            WorkspaceState::Attention
         } else {
             WorkspaceState::Empty
         };

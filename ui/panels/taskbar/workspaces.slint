@@ -61,9 +61,7 @@ component WorkspaceIndicator {
         border-top-right-radius: get-vertical-side-border-radius(data.occupied, data.next_occupied);
         border-bottom-right-radius: get-vertical-side-border-radius(data.occupied, data.next_occupied);
         background: {
-            if data.state == WorkspaceState.Attention {
-                MaterialPalette.error
-            } else if data.occupied {
+            if data.occupied {
                 MaterialPalette.surface-container
             } else {
                 transparent
@@ -89,6 +87,13 @@ component WorkspaceIndicator {
             height: parent.height;
             border-radius: 16px;
             background: MaterialPalette.primary;
+        }
+
+        if data.state == WorkspaceState.Attention: Rectangle {
+            width: parent.width;
+            height: parent.height;
+            border-radius: 16px;
+            background: MaterialPalette.error;
         }
 
         // Icon or number

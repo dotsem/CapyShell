@@ -11,8 +11,33 @@ use hyprland::dispatch::{Dispatch, DispatchType, WorkspaceIdentifierWithSpecial}
 use hyprland::event_listener::EventListener;
 use hyprland::shared::HyprData;
 use log::{debug, error, info};
+use std::collections::HashSet;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{LazyLock, RwLock};
 use std::thread;
+
+// Urgent window handling, stored here as it is not stored in the client data
+static URGENT_WINDOWS: LazyLock<RwLock<HashSet<String>>> =
+    LazyLock::new(|| RwLock::new(HashSet::new()));
+
+pub(crate) fn is_urgent(address: &str) -> bool {
+    URGENT_WINDOWS
+        .read()
+        .map(|set| set.contains(address))
+        .unwrap_or(false)
+}
+
+fn add_urgent(address: String) {
+    if let Ok(mut set) = URGENT_WINDOWS.write() {
+        set.insert(address);
+    }
+}
+
+fn clear_urgent(address: &str) {
+    if let Ok(mut set) = URGENT_WINDOWS.write() {
+        set.remove(address);
+    }
+}
 
 /// Number of workspaces per monitor.
 pub const WORKSPACES_PER_MONITOR: i32 = 10;
@@ -98,6 +123,9 @@ impl WindowBackend for HyprlandBackend {
 
             listener.add_active_window_changed_handler(|win| {
                 debug!("Active window changed: {:?}", win);
+                if let Some(ref w) = win {
+                    clear_urgent(&w.address.to_string());
+                }
                 active_window::set(win);
                 workspaces::send_updates_to_all_monitors();
             });
@@ -109,11 +137,13 @@ impl WindowBackend for HyprlandBackend {
 
             listener.add_window_closed_handler(|addr| {
                 debug!("Window closed: {:?}", addr);
+                clear_urgent(&addr.to_string());
                 workspaces::send_updates_to_all_monitors();
             });
 
             listener.add_urgent_state_changed_handler(|addr| {
                 debug!("Urgent state changed: {:?}", addr);
+                add_urgent(addr.to_string());
                 workspaces::send_updates_to_all_monitors();
             });
 
