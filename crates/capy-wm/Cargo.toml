@@ -1,0 +1,17 @@
+[package]
+name = "capy-wm"
+version = "0.1.0"
+edition = "2024"
+description = "Window manager abstraction for Wayland compositors"
+license = "MIT"
+
+[dependencies]
+# Core
+log = "0.4"
+
+# Hyprland backend
+hyprland = { version = "0.4.0-beta.3", optional = true }
+
+[features]
+default = ["hyprland"]
+hyprland = ["dep:hyprland"]

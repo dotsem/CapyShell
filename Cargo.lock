@@ -9,6 +9,7 @@ dependencies = [
  "battery",
  "bluer",
  "capy-mpris",
+ "capy-wm",
  "chrono",
  "crossbeam-channel",
  "env_logger",
@@ -911,6 +912,14 @@ dependencies = [
  "thiserror 2.0.17",
  "tokio",
  "zbus 4.4.0",
+]
+
+[[package]]
+name = "capy-wm"
+version = "0.1.0"
+dependencies = [
+ "hyprland",
+ "log",
 ]
 
 [[package]]
