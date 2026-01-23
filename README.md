@@ -1,9 +1,18 @@
 # CapyShell
 
-CapyShell is a modern, minimalistic, and highly customizable window manager for Linux targeting tiling window managers (currently only supports Hyprland).
+CapyShell is a modern, minimalistic, and highly customizable window manager for Linux targeting tiling Wayland window managers.
+
+> [!NOTE]
+> This project aims to support Hyprland, Sway, Niri, (maybe more)
+> It currently only supports Hyprland.
 
 > [!IMPORTANT]
-> This project is still in alpha phase, new features are still being added. View [the roadmap](https://github.com/dotsem/CapyShell/edit/master/ROADMAP.md) to see which features are in the process of being added for the first release.
+> This project is still in alpha phase, new features are still being added. View [the roadmap](https://github.com/dotsem/CapyShell/blob/master/ROADMAP.md) to see which features are in the process of being added for the first release.
+
+## How does it work?
+
+CapyShell is built with Rust & Slint. It is built with multiple "capy" crates that can be used to create your own desktop widgets, panels, ... (whatever your heart may desire)
+Capyshell uses the [Spell Framework](https://github.com/VimYoung/Spell) to bring the Slint windows to your desktop (with layer shell protocol).
 
 ## Features
 
