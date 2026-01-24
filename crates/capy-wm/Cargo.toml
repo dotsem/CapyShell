@@ -2,7 +2,7 @@
 name = "capy-wm"
 version = "0.1.0"
 edition = "2024"
-description = "Window manager abstraction for Wayland compositors"
+description = "Window manager abstraction for Wayland tiling window managers"
 license = "MIT"
 
 [dependencies]
