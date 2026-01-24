@@ -4,12 +4,15 @@
 //! Currently supports Hyprland with architecture ready for Sway, Niri, etc.
 
 pub mod types;
+pub mod window_backend;
 
 #[cfg(feature = "hyprland")]
 pub mod hyprland;
 
 pub use types::*;
+pub use window_backend::*;
 
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, OnceLock, RwLock};
 
@@ -24,6 +27,63 @@ pub type EventCallback = Box<dyn Fn(WmEvent) + Send + Sync>;
 // Global callbacks shared across the backend
 static ICON_RESOLVER: OnceLock<Arc<RwLock<Option<IconResolver>>>> = OnceLock::new();
 static EVENT_CALLBACK: OnceLock<Arc<RwLock<Option<EventCallback>>>> = OnceLock::new();
+
+// Global state cache
+static STATE: OnceLock<WmState> = OnceLock::new();
+
+/// Global window manager state cache.
+pub struct WmState {
+    /// Currently active window info.
+    pub active_window: RwLock<ActiveWindowInfo>,
+    /// Workspace status keyed by monitor name.
+    pub workspaces: RwLock<HashMap<String, WorkspacesStatus>>,
+}
+
+/// Returns the active window info.
+pub fn get_active_window() -> ActiveWindowInfo {
+    get_state()
+        .active_window
+        .read()
+        .ok()
+        .map(|w| w.clone())
+        .unwrap_or_default()
+}
+
+pub fn get_workspaces_status(monitor_name: &str) -> WorkspacesStatus {
+    get_state()
+        .workspaces
+        .read()
+        .ok()
+        .and_then(|map| map.get(monitor_name).cloned())
+        .unwrap_or_else(|| WorkspacesStatus {
+            monitor_name: monitor_name.to_string(),
+            workspaces: Vec::new(),
+        })
+}
+
+/// Get the active monitor name.
+pub fn get_active_monitor() -> String {
+    get_state()
+        .active_window
+        .read()
+        .ok()
+        .map(|w| w.focused_monitor.clone())
+        .unwrap_or_default()
+}
+
+impl WmState {
+    fn new() -> Self {
+        Self {
+            active_window: RwLock::new(ActiveWindowInfo::default()),
+            workspaces: RwLock::new(HashMap::new()),
+        }
+    }
+}
+
+/// Get the global state instance.
+pub fn get_state() -> &'static WmState {
+    STATE.get_or_init(WmState::new)
+}
 
 fn get_icon_resolver_store() -> Arc<RwLock<Option<IconResolver>>> {
     ICON_RESOLVER
@@ -62,92 +122,26 @@ pub fn resolve_icon(class: &str) -> Option<PathBuf> {
         .and_then(|guard| guard.as_ref().and_then(|r| r(class)))
 }
 
-/// Send a WM event to the configured callback.
+/// Updates internal Cache and sends a WM event to the configured callback.
 pub fn send_event(event: WmEvent) {
+    let state = get_state();
+    match &event {
+        WmEvent::WorkspacesChanged(status) => {
+            if let Ok(mut guard) = state.workspaces.write() {
+                guard.insert(status.monitor_name.clone(), status.clone());
+            }
+        }
+        WmEvent::ActiveWindowChanged(info) => {
+            if let Ok(mut guard) = state.active_window.write() {
+                *guard = info.clone();
+            }
+        }
+        _ => {}
+    }
+
     if let Ok(guard) = get_event_callback_store().read() {
         if let Some(ref callback) = *guard {
             callback(event);
         }
     }
-}
-
-/// Trait that all window manager backends must implement.
-/// This provides a unified interface regardless of the underlying WM.
-pub trait WindowBackend: Send + Sync {
-    /// Get workspace status for a specific monitor.
-    fn get_workspaces(&self, monitor_name: &str) -> WorkspacesStatus;
-
-    /// Get information about the currently active window.
-    fn get_active_window(&self) -> ActiveWindowInfo;
-
-    /// Get the name of the currently focused monitor.
-    fn get_active_monitor(&self) -> String;
-
-    /// Get all monitor names.
-    fn get_monitors(&self) -> Vec<String>;
-
-    /// Switch to a specific workspace by absolute ID.
-    fn switch_workspace(&self, workspace_id: i32);
-
-    /// Start the background event listener.
-    /// This spawns a thread that monitors WM events and calls the event callback.
-    fn start_listener(&self);
-
-    /// Trigger a refresh of all WM state.
-    fn trigger_refresh(&self);
-
-    /// Initialize the active window state.
-    fn init_active_window(&self);
-}
-
-/// Detect the current window manager from environment variables.
-pub fn detect_wm() -> WmType {
-    if let Ok(desktop) = std::env::var("XDG_CURRENT_DESKTOP") {
-        let desktop_lower = desktop.to_lowercase();
-        if desktop_lower.contains("hyprland") {
-            return WmType::Hyprland;
-        }
-        if desktop_lower.contains("sway") {
-            return WmType::Sway;
-        }
-        if desktop_lower.contains("niri") {
-            return WmType::Niri;
-        }
-    }
-
-    // Specific Wm checks
-    if std::env::var("HYPRLAND_INSTANCE_SIGNATURE").is_ok() {
-        return WmType::Hyprland;
-    }
-
-    if std::env::var("SWAYSOCK").is_ok() {
-        return WmType::Sway;
-    }
-
-    // TODO: check for niri
-    // if std::env::var("NIRISOCK").is_ok() {
-    //     return WmType::Niri;
-    // }
-
-    WmType::Unknown
-}
-
-/// Create the appropriate backend for the detected window manager.
-/// Returns None if no supported WM is detected.
-pub fn create_backend() -> Option<Box<dyn WindowBackend>> {
-    match detect_wm() {
-        #[cfg(feature = "hyprland")]
-        WmType::Hyprland => Some(Box::new(hyprland::HyprlandBackend::new())),
-
-        // Future backends:
-        // WmType::Sway => Some(Box::new(sway::SwayBackend::new())),
-        // WmType::Niri => Some(Box::new(niri::NiriBackend::new())),
-        _ => None,
-    }
-}
-
-/// Get the backend, panicking if no supported WM is detected.
-/// Use this when you require a WM to be present.
-pub fn get_backend() -> Box<dyn WindowBackend> {
-    create_backend().expect("No supported window manager detected")
 }

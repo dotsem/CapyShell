@@ -11,6 +11,7 @@ log = "0.4"
 
 # Hyprland backend
 hyprland = { version = "0.4.0-beta.3", optional = true }
+tokio = { version = "1", features = ["sync", "time"] }
 
 [features]
 default = ["hyprland"]
