@@ -18,6 +18,7 @@ The first release will include a taskbar and a basic app launcher. It is not pla
 - [ ] create crate for shared window manager communication -> 1 crate communicating with the current window manager. This crate will then share generalized data to each crate that asks for information. This means that most of the window manager information is only fetched once and updated effeciently
 - [ ] create **selector for media source for media player**
 - [ ] add app basic **app launcher** (directly create a standard menu for this to share other menu items)
+- [ ] add systray
 - [ ] add generalized config file with following configs
     - show seconds
     - DD/MM/YYYY or MM/DD/YYYY
