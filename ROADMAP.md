@@ -15,7 +15,7 @@ The first release will include a taskbar and a basic app launcher. It is not pla
 - [x] fix music player animated playing bars
 - [x] split up the project in different crates
 - [ ] improve icon & app finding crate
-- [ ] create crate for shared window manager communication -> 1 crate communicating with the current window manager. This crate will then share generalized data to each crate that asks for information. This means that most of the window manager information is only fetched once and updated effeciently
+- [x] create crate for shared window manager communication -> 1 crate communicating with the current window manager. This crate will then share generalized data to each crate that asks for information. This means that most of the window manager information is only fetched once and updated effeciently
 - [ ] create **selector for media source for media player**
 - [ ] add app basic **app launcher** (directly create a standard menu for this to share other menu items)
 - [ ] add systray
