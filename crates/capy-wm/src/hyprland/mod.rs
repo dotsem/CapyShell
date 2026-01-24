@@ -5,8 +5,7 @@
 mod active_window;
 mod workspaces;
 
-use crate::window_backend::WindowBackend;
-use crate::{WmEvent, send_event};
+use crate::{WindowBackend, WmEvent, send_event};
 use hyprland::data::Monitors;
 use hyprland::dispatch::{Dispatch, DispatchType, WorkspaceIdentifierWithSpecial};
 use hyprland::event_listener::EventListener;
@@ -90,11 +89,7 @@ impl WindowBackend for HyprlandBackend {
         info!("Starting Hyprland event listener...");
 
         // Initialize active window state
-        active_window::init();
-
-        // Initial state population
-        let active = active_window::get();
-        send_event(WmEvent::ActiveWindowChanged(active));
+        self.init_active_window();
         workspaces::send_updates_to_all_monitors();
 
         thread::spawn(move || {
@@ -161,9 +156,7 @@ impl WindowBackend for HyprlandBackend {
     fn trigger_refresh(&self) {
         info!("Triggering Hyprland state refresh...");
         workspaces::send_updates_to_all_monitors();
-        active_window::init();
-        let active = active_window::get();
-        send_event(WmEvent::ActiveWindowChanged(active));
+        self.init_active_window();
     }
 
     fn init_active_window(&self) {

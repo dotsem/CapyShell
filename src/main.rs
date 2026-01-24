@@ -79,9 +79,6 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     debug!("Created {} windows", windows.len());
 
-    // Init active window
-    hyprland_wm::active_window::init_active_window();
-
     // create Slint UIs for each window
     let mut uis: Vec<Taskbar> = Vec::new();
     for (i, _waywin) in windows.iter().enumerate() {

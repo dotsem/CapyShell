@@ -35,10 +35,6 @@ pub mod hyprland_wm {
     pub mod active_window {
         use super::*;
 
-        pub fn init_active_window() {
-            get_backend().init_active_window();
-        }
-
         pub fn get_active_window() -> ActiveWindowInfo {
             ::capy_wm::get_active_window()
         }

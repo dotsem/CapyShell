@@ -1,15 +1,11 @@
 //! Active window tracking for Hyprland.
 
 use crate::types::ActiveWindowInfo;
-use crate::{WmEvent, resolve_icon, send_event};
+use crate::{WmEvent, get_state, resolve_icon, send_event};
 use hyprland::data::{Client, Monitors};
 use hyprland::event_listener::{WindowEventData, WindowTitleEventData};
 use hyprland::shared::{HyprData, HyprDataActiveOptional};
 use log::warn;
-use std::sync::{LazyLock, RwLock};
-
-static ACTIVE_WINDOW: LazyLock<RwLock<ActiveWindowInfo>> =
-    LazyLock::new(|| RwLock::new(ActiveWindowInfo::default()));
 
 fn get_active_monitor_name() -> String {
     Monitors::get()
@@ -28,9 +24,7 @@ pub(crate) fn init() {
             icon_path: resolve_icon(&active.class),
             focused_monitor: get_active_monitor_name(),
         };
-        if let Ok(mut guard) = ACTIVE_WINDOW.write() {
-            *guard = info;
-        }
+        send_event(WmEvent::ActiveWindowChanged(info));
     } else {
         warn!("Failed to initialize active window");
     }
@@ -38,11 +32,13 @@ pub(crate) fn init() {
 
 /// Set the active window from a Hyprland event.
 pub(crate) fn set(window: Option<WindowEventData>) {
-    let mut guard = ACTIVE_WINDOW.write().unwrap();
-    let current_address = &guard.address;
+    let current_address = match get_state().active_window.read() {
+        Ok(guard) => guard.address.clone(),
+        Err(_) => String::new(),
+    };
 
     match window {
-        Some(w) if w.address.to_string() != *current_address => {
+        Some(w) if w.address.to_string() != current_address => {
             let new_info = ActiveWindowInfo {
                 address: w.address.to_string(),
                 app: w.class.clone(),
@@ -50,15 +46,10 @@ pub(crate) fn set(window: Option<WindowEventData>) {
                 icon_path: resolve_icon(&w.class),
                 focused_monitor: get_active_monitor_name(),
             };
-            *guard = new_info.clone();
-            drop(guard);
             send_event(WmEvent::ActiveWindowChanged(new_info));
         }
         None if !current_address.is_empty() => {
-            *guard = ActiveWindowInfo::default();
-            let info = guard.clone();
-            drop(guard);
-            send_event(WmEvent::ActiveWindowChanged(info));
+            send_event(WmEvent::ActiveWindowChanged(ActiveWindowInfo::default()));
         }
         _ => {}
     }
@@ -66,17 +57,21 @@ pub(crate) fn set(window: Option<WindowEventData>) {
 
 /// Update the active window title.
 pub(crate) fn update_title(title_info: WindowTitleEventData) {
-    let mut guard = ACTIVE_WINDOW.write().unwrap();
-    if title_info.address.to_string() != guard.address {
-        return;
-    }
-    guard.window_title = title_info.title;
-    let info = guard.clone();
-    drop(guard);
+    let mut info = match get_state().active_window.read() {
+        Ok(guard) => {
+            if title_info.address.to_string() != guard.address {
+                return;
+            }
+            guard.clone()
+        }
+        Err(_) => return,
+    };
+
+    info.window_title = title_info.title;
     send_event(WmEvent::ActiveWindowChanged(info));
 }
 
 /// Get the current active window info.
 pub fn get() -> ActiveWindowInfo {
-    ACTIVE_WINDOW.read().unwrap().clone()
+    crate::get_active_window()
 }

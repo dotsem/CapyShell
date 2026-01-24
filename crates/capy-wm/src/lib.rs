@@ -41,34 +41,53 @@ pub struct WmState {
 
 /// Returns the active window info.
 pub fn get_active_window() -> ActiveWindowInfo {
-    get_state()
-        .active_window
-        .read()
-        .ok()
-        .map(|w| w.clone())
-        .unwrap_or_default()
+    let state = get_state();
+    match state.active_window.read() {
+        Ok(w) => w.clone(),
+        Err(err) => {
+            eprintln!(
+                "capy-wm: failed to acquire read lock on active_window in get_active_window: {:?}",
+                err
+            );
+            ActiveWindowInfo::default()
+        }
+    }
 }
-
 pub fn get_workspaces_status(monitor_name: &str) -> WorkspacesStatus {
-    get_state()
-        .workspaces
-        .read()
-        .ok()
-        .and_then(|map| map.get(monitor_name).cloned())
-        .unwrap_or_else(|| WorkspacesStatus {
-            monitor_name: monitor_name.to_string(),
-            workspaces: Vec::new(),
-        })
+    let state = get_state();
+    match state.workspaces.read() {
+        Ok(map) => map
+            .get(monitor_name)
+            .cloned()
+            .unwrap_or_else(|| WorkspacesStatus {
+                monitor_name: monitor_name.to_string(),
+                workspaces: Vec::new(),
+            }),
+        Err(err) => {
+            eprintln!(
+                "capy-wm: failed to acquire read lock on workspaces in get_workspaces_status for monitor '{}': {:?}",
+                monitor_name, err
+            );
+            WorkspacesStatus {
+                monitor_name: monitor_name.to_string(),
+                workspaces: Vec::new(),
+            }
+        }
+    }
 }
-
 /// Get the active monitor name.
 pub fn get_active_monitor() -> String {
-    get_state()
-        .active_window
-        .read()
-        .ok()
-        .map(|w| w.focused_monitor.clone())
-        .unwrap_or_default()
+    let state = get_state();
+    match state.active_window.read() {
+        Ok(w) => w.focused_monitor.clone(),
+        Err(err) => {
+            eprintln!(
+                "capy-wm: failed to acquire read lock on active_window in get_active_monitor: {:?}",
+                err
+            );
+            String::new()
+        }
+    }
 }
 
 impl WmState {
@@ -99,8 +118,16 @@ fn get_event_callback_store() -> Arc<RwLock<Option<EventCallback>>> {
 
 /// Set the icon resolver callback.
 pub fn set_icon_resolver(resolver: IconResolver) {
-    if let Ok(mut guard) = get_icon_resolver_store().write() {
-        *guard = Some(resolver);
+    match get_icon_resolver_store().write() {
+        Ok(mut guard) => {
+            *guard = Some(resolver);
+        }
+        Err(err) => {
+            eprintln!(
+                "capy-wm: failed to acquire write lock on icon resolver: {:?}",
+                err
+            );
+        }
     }
 }
 
@@ -109,39 +136,79 @@ pub fn set_event_callback<F>(callback: F)
 where
     F: Fn(WmEvent) + Send + Sync + 'static,
 {
-    if let Ok(mut guard) = get_event_callback_store().write() {
-        *guard = Some(Box::new(callback));
+    match get_event_callback_store().write() {
+        Ok(mut guard) => {
+            *guard = Some(Box::new(callback));
+        }
+        Err(err) => {
+            eprintln!(
+                "capy-wm: failed to acquire write lock on event callback: {:?}",
+                err
+            );
+        }
     }
 }
 
 /// Resolve an icon path using the configured resolver.
 pub fn resolve_icon(class: &str) -> Option<PathBuf> {
-    get_icon_resolver_store()
-        .read()
-        .ok()
-        .and_then(|guard| guard.as_ref().and_then(|r| r(class)))
+    match get_icon_resolver_store().read() {
+        Ok(guard) => guard.as_ref().and_then(|r| r(class)),
+        Err(err) => {
+            eprintln!(
+                "capy-wm: failed to acquire read lock on icon resolver in resolve_icon: {:?}",
+                err
+            );
+            None
+        }
+    }
 }
 
-/// Updates internal Cache and sends a WM event to the configured callback.
+/// Updates internal cache and sends a WM event to the configured callback.
 pub fn send_event(event: WmEvent) {
     let state = get_state();
+    let mut update_successful = true;
+
     match &event {
-        WmEvent::WorkspacesChanged(status) => {
-            if let Ok(mut guard) = state.workspaces.write() {
+        WmEvent::WorkspacesChanged(status) => match state.workspaces.write() {
+            Ok(mut guard) => {
                 guard.insert(status.monitor_name.clone(), status.clone());
             }
-        }
-        WmEvent::ActiveWindowChanged(info) => {
-            if let Ok(mut guard) = state.active_window.write() {
+            Err(err) => {
+                eprintln!(
+                    "capy-wm: failed to acquire write lock on workspaces in send_event: {:?}",
+                    err
+                );
+                update_successful = false;
+            }
+        },
+        WmEvent::ActiveWindowChanged(info) => match state.active_window.write() {
+            Ok(mut guard) => {
                 *guard = info.clone();
             }
-        }
+            Err(err) => {
+                eprintln!(
+                    "capy-wm: failed to acquire write lock on active_window in send_event: {:?}",
+                    err
+                );
+                update_successful = false;
+            }
+        },
         _ => {}
     }
 
-    if let Ok(guard) = get_event_callback_store().read() {
-        if let Some(ref callback) = *guard {
-            callback(event);
+    if update_successful {
+        match get_event_callback_store().read() {
+            Ok(guard) => {
+                if let Some(ref callback) = *guard {
+                    callback(event);
+                }
+            }
+            Err(err) => {
+                eprintln!(
+                    "capy-wm: failed to acquire read lock on event callback store in send_event: {:?}",
+                    err
+                );
+            }
         }
     }
 }
