@@ -10,8 +10,7 @@ use crate::services::media::MprisData;
 use crate::services::network::NetworkStatus;
 use crate::services::system_info::SystemStatus;
 use crate::services::volume::VolumeStatus;
-use crate::services::wm::WorkspacesStatus;
-use crate::services::wm::types::ActiveWindowInfo;
+use crate::services::wm::{ActiveWindowInfo, WorkspacesStatus};
 use std::sync::OnceLock;
 use tokio::sync::broadcast::{self, Receiver, Sender};
 

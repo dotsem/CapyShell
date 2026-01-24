@@ -11,7 +11,7 @@ use crate::panels::taskbar::{active_window, distro_icon};
 use crate::services::wm::hyprland_wm;
 use hyprland::data::{Monitor, Monitors};
 use hyprland::shared::HyprData;
-use log::{debug, error, info, warn};
+use log::{debug, error, info};
 use panels::taskbar::events::TaskbarEvent;
 use panels::taskbar::taskbar::Taskbar;
 use panels::taskbar::{battery, bluetooth, clock, events, media, network, volume, workspaces};
