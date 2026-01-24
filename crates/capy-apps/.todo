@@ -1,0 +1,3 @@
+- [ ] Add tests
+- [ ] Add docs
+- [ ] Add IPC so other programs outside of this program can use the icon cache used by capyshell or something else
