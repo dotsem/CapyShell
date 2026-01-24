@@ -1,7 +1,7 @@
 //! capy-wm: Window manager abstraction for tiling window managers
 //!
 //! Provides a unified interface for interacting with tiling window managers.
-//! Currently supports Hyprland with architecture ready for Sway, i3, etc.
+//! Currently supports Hyprland with architecture ready for Sway, Niri, etc.
 
 pub mod types;
 
@@ -110,8 +110,8 @@ pub fn detect_wm() -> WmType {
         if desktop_lower.contains("sway") {
             return WmType::Sway;
         }
-        if desktop_lower.contains("i3") {
-            return WmType::I3;
+        if desktop_lower.contains("niri") {
+            return WmType::Niri;
         }
     }
 
@@ -124,9 +124,10 @@ pub fn detect_wm() -> WmType {
         return WmType::Sway;
     }
 
-    if std::env::var("I3SOCK").is_ok() {
-        return WmType::I3;
-    }
+    // TODO: check for niri
+    // if std::env::var("NIRISOCK").is_ok() {
+    //     return WmType::Niri;
+    // }
 
     WmType::Unknown
 }
@@ -140,7 +141,7 @@ pub fn create_backend() -> Option<Box<dyn WindowBackend>> {
 
         // Future backends:
         // WmType::Sway => Some(Box::new(sway::SwayBackend::new())),
-        // WmType::I3 => Some(Box::new(i3::I3Backend::new())),
+        // WmType::Niri => Some(Box::new(niri::NiriBackend::new())),
         _ => None,
     }
 }

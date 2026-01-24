@@ -8,7 +8,7 @@ use std::path::PathBuf;
 pub enum WmType {
     Hyprland,
     Sway,
-    I3,
+    Niri,
     Unknown,
 }
 
@@ -17,7 +17,7 @@ impl std::fmt::Display for WmType {
         match self {
             WmType::Hyprland => write!(f, "Hyprland"),
             WmType::Sway => write!(f, "Sway"),
-            WmType::I3 => write!(f, "i3"),
+            WmType::Niri => write!(f, "Niri"),
             WmType::Unknown => write!(f, "Unknown"),
         }
     }
