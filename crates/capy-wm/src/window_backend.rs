@@ -75,3 +75,40 @@ pub fn create_backend() -> Option<Box<dyn WindowBackend>> {
 pub fn get_backend() -> Box<dyn WindowBackend> {
     create_backend().expect("No supported window manager detected")
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::env;
+    use std::sync::Mutex;
+
+    // Use a mutex to ensure tests that modify env vars don't race
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
+
+    #[test]
+    fn test_detect_wm_hyprland_xdg() {
+        let _guard = ENV_LOCK.lock().unwrap();
+
+        unsafe {
+            env::set_var("XDG_CURRENT_DESKTOP", "Hyprland");
+        }
+        assert_eq!(detect_wm(), WmType::Hyprland);
+        unsafe {
+            env::remove_var("XDG_CURRENT_DESKTOP");
+        }
+    }
+
+    #[test]
+    fn test_detect_wm_unknown() {
+        let _guard = ENV_LOCK.lock().unwrap();
+
+        // Clear potential env vars
+        unsafe {
+            env::remove_var("XDG_CURRENT_DESKTOP");
+            env::remove_var("HYPRLAND_INSTANCE_SIGNATURE");
+            env::remove_var("SWAYSOCK");
+        }
+
+        assert_eq!(detect_wm(), WmType::Unknown);
+    }
+}
