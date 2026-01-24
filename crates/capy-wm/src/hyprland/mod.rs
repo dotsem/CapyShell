@@ -5,7 +5,7 @@
 mod active_window;
 mod workspaces;
 
-use crate::{ActiveWindowInfo, WindowBackend, WmEvent, WorkspacesStatus, send_event};
+use crate::{WindowBackend, WmEvent, send_event};
 use hyprland::data::Monitors;
 use hyprland::dispatch::{Dispatch, DispatchType, WorkspaceIdentifierWithSpecial};
 use hyprland::event_listener::EventListener;
@@ -61,14 +61,6 @@ impl Default for HyprlandBackend {
 }
 
 impl WindowBackend for HyprlandBackend {
-    fn get_workspaces(&self, monitor_name: &str) -> WorkspacesStatus {
-        workspaces::get_status(monitor_name)
-    }
-
-    fn get_active_window(&self) -> ActiveWindowInfo {
-        active_window::get()
-    }
-
     fn get_active_monitor(&self) -> String {
         Monitors::get()
             .ok()
@@ -97,7 +89,8 @@ impl WindowBackend for HyprlandBackend {
         info!("Starting Hyprland event listener...");
 
         // Initialize active window state
-        active_window::init();
+        self.init_active_window();
+        workspaces::send_updates_to_all_monitors();
 
         thread::spawn(move || {
             let mut listener = EventListener::new();
@@ -163,13 +156,13 @@ impl WindowBackend for HyprlandBackend {
     fn trigger_refresh(&self) {
         info!("Triggering Hyprland state refresh...");
         workspaces::send_updates_to_all_monitors();
-        active_window::init();
-        let active = active_window::get();
-        send_event(WmEvent::ActiveWindowChanged(active));
+        self.init_active_window();
     }
 
     fn init_active_window(&self) {
         active_window::init();
+        let active = active_window::get();
+        send_event(WmEvent::ActiveWindowChanged(active));
     }
 }
 

@@ -28,19 +28,15 @@ pub mod hyprland_wm {
         use super::*;
 
         pub fn get_status(monitor_name: &str) -> WorkspacesStatus {
-            get_backend().get_workspaces(monitor_name)
+            ::capy_wm::get_workspaces_status(monitor_name)
         }
     }
 
     pub mod active_window {
         use super::*;
 
-        pub fn init_active_window() {
-            get_backend().init_active_window();
-        }
-
         pub fn get_active_window() -> ActiveWindowInfo {
-            get_backend().get_active_window()
+            ::capy_wm::get_active_window()
         }
     }
 }
