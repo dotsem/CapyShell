@@ -13,7 +13,7 @@ The first release will include a taskbar and a basic app launcher. It is not pla
 - [x] fix memory leak for media player
 - [x] **distribution icon** on left side (will later open a menu)
 - [x] fix music player animated playing bars
-- [ ] split up the project in different crates
+- [x] split up the project in different crates
 - [ ] improve icon & app finding crate
 - [ ] create crate for shared window manager communication -> 1 crate communicating with the current window manager. This crate will then share generalized data to each crate that asks for information. This means that most of the window manager information is only fetched once and updated effeciently
 - [ ] create **selector for media source for media player**
@@ -47,6 +47,7 @@ after this, a first release will be done
 - [ ] **settings app** -> change CapyShell settings like theme, background on the fly, manager hyprland monitor layout, ...
 - [ ] (desktop widget, only visible on empty desktop) that app bar that gnome & apple have, idk looks cool
 - [ ] (desktop widget, only visible on empty desktop) task planner for today -> all tasks you want to do today & overdue tasks from previous days, so basically a short term task tracker
+- [ ] migrate system info logic into crate
 
 ### features for app launcher
 
