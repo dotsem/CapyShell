@@ -1,4 +1,4 @@
-use super::taskbar::Taskbar;
+use crate::panels::taskbar::Taskbar;
 
 pub fn update_clock(ui: &Taskbar) {
     let now = chrono::Local::now();

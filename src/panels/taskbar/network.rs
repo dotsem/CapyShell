@@ -3,7 +3,7 @@
 //! Receives network events from the service layer and updates the Slint UI.
 //! The actual monitoring logic lives in services/network.rs.
 
-use crate::panels::taskbar::taskbar::{NetworkState as SlintNetworkState, Taskbar};
+use crate::panels::taskbar::{NetworkState as SlintNetworkState, Taskbar};
 use crate::services::network::{ConnectionType, NetworkStatus};
 
 /// Update the taskbar UI with network data.

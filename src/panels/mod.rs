@@ -1,3 +1,4 @@
+pub mod media_selector;
 pub mod taskbar;
 
 // Add more panels as you create them:

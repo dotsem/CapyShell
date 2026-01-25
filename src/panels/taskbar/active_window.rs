@@ -1,5 +1,5 @@
 use crate::panels::taskbar::load_icon;
-use crate::panels::taskbar::taskbar::{ActiveWindowData, Taskbar};
+use crate::panels::taskbar::{ActiveWindowData, Taskbar};
 use crate::services::wm::ActiveWindowInfo;
 
 pub fn update_ui(ui: &Taskbar, data: &ActiveWindowInfo, monitor_name: &str) {

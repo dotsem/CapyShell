@@ -3,7 +3,7 @@
 //! Receives battery events from the service layer and updates the Slint UI.
 //! The actual monitoring logic lives in services/battery.rs.
 
-use crate::panels::taskbar::taskbar::{BatteryData, BatteryState as SlintBatteryState, Taskbar};
+use crate::panels::taskbar::{BatteryData, BatteryState as SlintBatteryState, Taskbar};
 use crate::services::battery::{BatteryState, BatteryStatus};
 
 /// Convert service battery status to Slint UI data.

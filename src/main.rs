@@ -4,36 +4,23 @@
 
 mod event_bus;
 mod functions;
+mod panel_manager;
 mod panels;
 mod services;
 
-use crate::panels::taskbar::{active_window, distro_icon};
-use crate::services::wm::hyprland_wm;
 use hyprland::data::{Monitor, Monitors};
 use hyprland::shared::HyprData;
-use log::{debug, error, info};
-use panels::taskbar::events::TaskbarEvent;
-use panels::taskbar::taskbar::Taskbar;
-use panels::taskbar::{battery, bluetooth, clock, events, media, network, volume, workspaces};
-use slint::ComponentHandle;
-use spell_framework::{
-    enchant_spells,
-    layer_properties::{BoardType, LayerAnchor, LayerType, WindowConf},
-    slint_adapter::SpellMultiWinHandler,
-    wayland_adapter::SpellWin,
-};
+use log::{error, info};
 use std::error::Error;
 
-const TASKBAR_HEIGHT: u32 = 48;
-const EVENT_POLL_INTERVAL_MS: u64 = 50;
+use panel_manager::PanelManager;
+
+use crate::panels::media_selector::MediaSelectorFactory;
+use crate::panels::taskbar::TaskbarFactory;
 
 fn main() -> Result<(), Box<dyn Error>> {
-    info!("Starting CapyShell...");
+    println!("Welcome to CapyShell!"); // TODO: add more info
 
-    // Start shared background services ONCE
-    let service_status = services::start_all();
-
-    // Get all monitors
     let monitors: Vec<Monitor> = match Monitors::get() {
         Ok(monitors) => monitors.iter().cloned().collect(),
         Err(e) => {
@@ -42,169 +29,20 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
     };
 
-    if monitors.is_empty() {
-        error!("No monitors found!");
-        return Err("No monitors found!".into());
-    }
+    // Start background services once before init of panels
+    let service_status = services::start_all();
 
-    debug!("Found {} monitors", monitors.len());
+    let mut wm = PanelManager::new();
 
-    let configs: Vec<(String, WindowConf)> = monitors
-        .iter()
-        .map(|monitor| {
-            let name = format!("taskbar-{}", monitor.name);
-            let conf = WindowConf::new(
-                monitor.width as u32,
-                TASKBAR_HEIGHT,
-                (
-                    Some(LayerAnchor::TOP | LayerAnchor::LEFT | LayerAnchor::RIGHT),
-                    None,
-                ),
-                (0, 0, 0, 0),
-                LayerType::Top,
-                BoardType::None,
-                Some(TASKBAR_HEIGHT as i32),
-                Some(monitor.name.clone()),
-            );
-            (name, conf)
-        })
-        .collect();
+    let taskbar_factory =
+        TaskbarFactory::new(service_status.has_battery, service_status.has_bluetooth);
 
-    let configs_ref: Vec<(&str, WindowConf)> = configs
-        .iter()
-        .map(|(name, conf)| (name.as_str(), conf.clone()))
-        .collect();
+    let media_selector_factory = MediaSelectorFactory::new();
 
-    let windows: Vec<SpellWin> = SpellMultiWinHandler::conjure_spells(configs_ref);
+    wm.register_factory(taskbar_factory);
+    wm.register_factory(media_selector_factory);
 
-    debug!("Created {} windows", windows.len());
-
-    // create Slint UIs for each window
-    let mut uis: Vec<Taskbar> = Vec::new();
-    for (i, _waywin) in windows.iter().enumerate() {
-        let ui = Taskbar::new()?;
-        let monitor_name = monitors[i].name.clone();
-        info!("Taskbar {} assigned to monitor '{}'", i, monitor_name);
-
-        // Clock callback
-        let ui_weak_clock = ui.as_weak();
-        ui.on_update_clock(move || {
-            if let Some(ui_handle) = ui_weak_clock.upgrade() {
-                clock::update_clock(&ui_handle);
-            }
-        });
-
-        // Workspace click callback
-        ui.on_workspace_clicked(move |workspace_id| {
-            workspaces::switch_to_workspace(workspace_id);
-        });
-
-        // Event polling timer - each taskbar subscribes to the broadcast channel
-        let mut event_rx = events::subscribe();
-        let ui_weak_events = ui.as_weak();
-        let monitor_name_for_events = monitor_name.clone();
-
-        let event_timer = slint::Timer::default();
-        event_timer.start(
-            slint::TimerMode::Repeated,
-            std::time::Duration::from_millis(EVENT_POLL_INTERVAL_MS),
-            move || {
-                let events = events::drain_latest(&mut event_rx);
-                if events.is_empty() {
-                    return;
-                }
-                if let Some(ui) = ui_weak_events.upgrade() {
-                    for event in events {
-                        match event {
-                            TaskbarEvent::Battery(status) => {
-                                battery::update_ui(&ui, &status);
-                            }
-                            TaskbarEvent::Volume(status) => {
-                                volume::update_ui(&ui, &status);
-                            }
-                            TaskbarEvent::Network(status) => {
-                                network::update_ui(&ui, &status);
-                            }
-                            TaskbarEvent::Bluetooth(status) => {
-                                bluetooth::update_ui(&ui, &status);
-                            }
-                            TaskbarEvent::Workspaces(status) => {
-                                workspaces::update_ui(&ui, &status, &monitor_name_for_events);
-                            }
-                            TaskbarEvent::Mpris(data) => {
-                                media::update_ui(&ui, &data);
-                            }
-                            TaskbarEvent::ActiveWindow(data) => {
-                                //? this is actually the impl to get the active window per monitor instead of shared across all monitors
-                                // if ONLY_SHOW_ACTIVE_WINDOW_ON_ACTIVE_MONITOR
-                                //     && data.focused_monitor != monitor_name_for_events
-                                // {
-                                //     return;
-                                // }
-                                active_window::update_ui(&ui, &data, &monitor_name_for_events);
-                            }
-                            TaskbarEvent::SystemStatus(_data) => {
-                                // TODO: Implement UI update for system status
-                            }
-                        }
-                    }
-                }
-            },
-        );
-
-        // Initial state
-        clock::update_clock(&ui);
-
-        distro_icon::update_distro_icon(&ui);
-
-        // Battery setup (only if battery is present)
-        ui.set_has_battery(service_status.has_battery);
-        if service_status.has_battery {
-            let initial_status = services::battery::get_status();
-            battery::update_ui(&ui, &initial_status);
-        }
-
-        // Initial volume state
-        if let Some(volume_status) = services::volume::get_default_volume() {
-            volume::update_ui(&ui, &volume_status);
-        }
-
-        // Initial network state
-        let initial_network = services::network::get_status();
-        network::update_ui(&ui, &initial_network);
-
-        // Bluetooth setup (only if bluetooth adapter is present)
-        ui.set_has_bluetooth(service_status.has_bluetooth);
-        if service_status.has_bluetooth {
-            let initial_bluetooth = services::bluetooth::get_status();
-            bluetooth::update_ui(&ui, &initial_bluetooth);
-        }
-
-        // Initial workspace state
-        let initial_workspaces = hyprland_wm::workspaces::get_status(&monitor_name);
-        workspaces::update_ui(&ui, &initial_workspaces, &monitor_name);
-
-        media::attach_callbacks(&ui);
-
-        // Init active window
-        let initial_active_window = hyprland_wm::active_window::get_active_window();
-        active_window::update_ui(&ui, &initial_active_window, &monitor_name);
-
-        // Keep timer alive
-        std::mem::forget(event_timer);
-
-        uis.push(ui);
-        debug!("Initialized UI for monitor {}", i);
-    }
-
-    info!("CapyShell running with {} taskbars.", windows.len());
-
-    // Run all windows in single-threaded event loop
-    let num_windows = windows.len();
-    let states: Vec<_> = (0..num_windows).map(|_| None).collect();
-    let callbacks: Vec<_> = (0..num_windows).map(|_| None).collect();
-
-    enchant_spells(windows, states, callbacks)?;
+    wm.start(&monitors)?;
 
     Ok(())
 }

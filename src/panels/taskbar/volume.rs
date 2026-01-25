@@ -3,7 +3,7 @@
 //! Receives volume events from the service layer and updates the Slint UI.
 //! The actual monitoring logic lives in services/volume.rs.
 
-use crate::panels::taskbar::taskbar::Taskbar;
+use crate::panels::taskbar::Taskbar;
 use crate::services::volume::VolumeStatus;
 
 /// Update the taskbar UI with volume data.

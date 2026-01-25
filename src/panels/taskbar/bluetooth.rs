@@ -3,7 +3,7 @@
 //! Receives bluetooth events from the service layer and updates the Slint UI.
 //! The actual monitoring logic lives in services/bluetooth.rs.
 
-use crate::panels::taskbar::taskbar::{BluetoothState as SlintBluetoothState, Taskbar};
+use crate::panels::taskbar::{BluetoothState as SlintBluetoothState, Taskbar};
 use crate::services::bluetooth::BluetoothStatus;
 
 /// Update the taskbar UI with bluetooth data.

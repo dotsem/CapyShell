@@ -2,7 +2,7 @@
 //! Bridges MPRIS service data to Slint UI and handles control callbacks.
 //! Includes position interpolation for smooth progress bar updates.
 
-use crate::panels::taskbar::taskbar::{MediaData, Taskbar};
+use crate::panels::taskbar::{MediaData, Taskbar};
 use crate::services::media::{MprisData as ServiceMprisData, send_command};
 use capy_mpris::PlayerCommand;
 use log::{debug, warn};

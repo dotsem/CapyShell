@@ -4,7 +4,7 @@ use log::{info, trace, warn};
 
 use crate::services::system_info;
 
-use super::taskbar::Taskbar;
+use crate::panels::taskbar::Taskbar;
 
 pub fn update_distro_icon(ui: &Taskbar) {
     let distro_logo = format!(

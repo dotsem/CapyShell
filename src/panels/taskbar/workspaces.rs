@@ -3,9 +3,7 @@
 //! Receives workspace events from the service layer and updates the Slint UI.
 
 use crate::panels::taskbar::load_icon;
-use crate::panels::taskbar::taskbar::{
-    Taskbar, WorkspaceData, WorkspaceState as SlintWorkspaceState,
-};
+use crate::panels::taskbar::{Taskbar, WorkspaceData, WorkspaceState as SlintWorkspaceState};
 use crate::services::wm::{WorkspaceInfo, WorkspaceState, WorkspacesStatus};
 use slint::{ModelRc, VecModel};
 use std::rc::Rc;
