@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [main, master]
   pull_request:
-    branches: [ main, master ]
+    branches: [main, master]
 
 env:
   CARGO_TERM_COLOR: always
@@ -15,26 +15,26 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Install system dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libslint-dev libasound2-dev libpulse-dev libdbus-1-dev libbluetooth-dev libnm-dev libudev-dev
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev libpulse-dev libdbus-1-dev libbluetooth-dev libnm-dev libudev-dev
 
-    - name: Install Rust toolchain
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        components: clippy, rustfmt
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
 
-    - name: Check formatting
-      run: cargo fmt --all -- --check
+      - name: Check formatting
+        run: cargo fmt --all -- --check
 
-    - name: Linting
-      run: cargo clippy --all-targets --all-features -- -D warnings
+      - name: Linting
+        run: cargo clippy --all-targets --all-features -- -D warnings
 
-    - name: Run tests
-      run: cargo test --all-targets --all-features
+      - name: Run tests
+        run: cargo test --all-targets --all-features
 
-    - name: Build
-      run: cargo build --release --verbose
+      - name: Build
+        run: cargo build --release --verbose
