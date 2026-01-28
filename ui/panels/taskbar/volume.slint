@@ -12,7 +12,7 @@ import {
 export component TaskbarVolume inherits BaseButton {
     in property <int> volume;
 
-    color: MaterialPalette.on_surface;
+    color: root.volume == 0 ? MaterialPalette.error : MaterialPalette.on_surface;
 
     button_horizontal_padding: MaterialStyleMetrics.padding_4;
     button_vertical_padding: MaterialStyleMetrics.padding_4;
